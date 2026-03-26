@@ -8,6 +8,7 @@ import {
 import { CaseStatus, EventType, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { FilesService } from '../files/files.service';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { CASE_TRANSITIONS } from './case-state-machine';
 import { EVENT_LABELS } from '../common/constants/event-labels';
@@ -18,63 +19,75 @@ export class CasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
+    private readonly filesService: FilesService,
   ) {}
 
   async createCase(dto: CreateCaseDto, actorId: string, orgId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const prefix = `EVA-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const count = await tx.vehicleCase.count({
-        where: { caseNo: { startsWith: prefix } },
-      });
-      const caseNo = `${prefix}-${String(count + 1).padStart(5, '0')}`;
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const now = new Date();
+          const prefix = `EVA-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+          const count = await tx.vehicleCase.count({
+            where: { caseNo: { startsWith: prefix } },
+          });
+          const caseNo = `${prefix}-${String(count + 1).padStart(5, '0')}`;
 
-      const vehicleCase = await tx.vehicleCase.create({
-        data: {
-          orgId,
-          createdBy: actorId,
-          caseNo,
-          vehicleMaker: dto.vehicleMaker,
-          vehicleModel: dto.vehicleModel,
-          vehicleYear: dto.vehicleYear,
-          vin: dto.vin,
-          notes: dto.notes,
-          status: CaseStatus.DRAFT,
-        },
-      });
+          const vehicleCase = await tx.vehicleCase.create({
+            data: {
+              orgId,
+              createdBy: actorId,
+              caseNo,
+              vehicleMaker: dto.vehicleMaker,
+              vehicleModel: dto.vehicleModel,
+              vehicleYear: dto.vehicleYear,
+              vin: dto.vin,
+              notes: dto.notes,
+              status: CaseStatus.DRAFT,
+            },
+          });
 
-      const createdAt = new Date();
-      const payload = {
-        caseNo: vehicleCase.caseNo,
-        vehicleMaker: vehicleCase.vehicleMaker,
-        vehicleModel: vehicleCase.vehicleModel,
-        vehicleYear: vehicleCase.vehicleYear,
-      };
-      const selfHash = computeSelfHash({
-        caseId: vehicleCase.id,
-        seq: 1,
-        eventType: EventType.CASE_CREATED,
-        actorId,
-        prevHash: '0'.repeat(64),
-        payload,
-        createdAt,
-      });
+          const createdAt = new Date();
+          const payload = {
+            caseNo: vehicleCase.caseNo,
+            vehicleMaker: vehicleCase.vehicleMaker,
+            vehicleModel: vehicleCase.vehicleModel,
+            vehicleYear: vehicleCase.vehicleYear,
+          };
+          const selfHash = computeSelfHash({
+            caseId: vehicleCase.id,
+            seq: 1,
+            eventType: EventType.CASE_CREATED,
+            actorId,
+            prevHash: '0'.repeat(64),
+            payload,
+            createdAt,
+          });
 
-      await tx.eventLedger.create({
-        data: {
-          caseId: vehicleCase.id,
-          actorId,
-          seq: 1,
-          eventType: EventType.CASE_CREATED,
-          payload,
-          prevHash: '0'.repeat(64),
-          selfHash,
-          createdAt,
-        },
-      });
+          await tx.eventLedger.create({
+            data: {
+              caseId: vehicleCase.id,
+              actorId,
+              seq: 1,
+              eventType: EventType.CASE_CREATED,
+              payload,
+              prevHash: '0'.repeat(64),
+              selfHash,
+              createdAt,
+            },
+          });
 
-      return vehicleCase;
-    });
+          return vehicleCase;
+        });
+      } catch (error: any) {
+        // P2002: Unique constraint violation on caseNo — retry
+        if (error?.code === 'P2002' && attempt < MAX_RETRIES - 1) {
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   async transitionCase(
@@ -93,6 +106,17 @@ export class CasesService {
       throw new ForbiddenException(`Role ${actorRole} cannot perform ${eventType}`);
     }
 
+    if (rule.requiredPayloadFields?.length) {
+      const missing = rule.requiredPayloadFields.filter(
+        (field) => !payload || payload[field] == null,
+      );
+      if (missing.length > 0) {
+        throw new BadRequestException(
+          `Missing required payload fields for ${eventType}: ${missing.join(', ')}`,
+        );
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const vehicleCase = await tx.vehicleCase.findUnique({
         where: { id: caseId },
@@ -108,10 +132,19 @@ export class CasesService {
         );
       }
 
-      const updated = await tx.vehicleCase.update({
-        where: { id: caseId },
-        data: { status: rule.toStatus },
-      });
+      let updated;
+      try {
+        updated = await tx.vehicleCase.update({
+          where: { id: caseId, status: vehicleCase.status },
+          data: { status: rule.toStatus },
+        });
+      } catch (error: any) {
+        // P2025: Record not found — status already changed by concurrent request
+        if (error?.code === 'P2025') {
+          throw new ConflictException('상태가 이미 변경되었습니다');
+        }
+        throw error;
+      }
 
       const event = await this.ledgerService.appendEvent(
         caseId,
@@ -168,9 +201,27 @@ export class CasesService {
             fileName: true,
             fileType: true,
             objectKey: true,
+            status: true,
             uploadedAt: true,
           },
         });
+
+        const filesWithUrls = await Promise.all(
+          files.map(async (f) => {
+            let downloadUrl: string | null = null;
+            if (f.status === 'CONFIRMED') {
+              downloadUrl = await this.filesService.getPresignedDownloadUrl(f.objectKey);
+            }
+            return {
+              id: f.id,
+              fileName: f.fileName,
+              fileType: f.fileType,
+              objectKey: f.objectKey,
+              downloadUrl,
+              uploadedAt: f.uploadedAt,
+            };
+          }),
+        );
 
         return {
           seq: event.seq,
@@ -185,7 +236,7 @@ export class CasesService {
               }
             : null,
           payload: event.payload,
-          files,
+          files: filesWithUrls,
           createdAt: event.createdAt,
         };
       }),
@@ -200,14 +251,16 @@ export class CasesService {
     };
   }
 
-  async findAll(skip: number, take: number) {
+  async findAll(skip: number, take: number, orgId?: string) {
+    const where = orgId ? { orgId } : {};
     const [data, total] = await Promise.all([
       this.prisma.vehicleCase.findMany({
+        where,
         skip,
         take,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.vehicleCase.count(),
+      this.prisma.vehicleCase.count({ where }),
     ]);
     return { data, total, skip, take };
   }

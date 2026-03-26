@@ -75,8 +75,10 @@ export class CasesController {
   async findAll(
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
     @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Request() req: any,
   ) {
-    return this.casesService.findAll(skip, take);
+    const orgFilter = req.user.role === UserRole.ADMIN ? undefined : req.user.orgId;
+    return this.casesService.findAll(skip, take, orgFilter);
   }
 
   @Get(':id')

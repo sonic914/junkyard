@@ -3,16 +3,28 @@ import {
   Inject,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client as MinioClient } from 'minio';
-import { FileStatus } from '@prisma/client';
+import { FileStatus, FileType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MINIO_CLIENT } from './minio.provider';
 import { PresignFileDto } from './dto/presign-file.dto';
 
 const PRESIGN_EXPIRY = 3600; // 1 hour
+
+const FILE_TYPE_RULES: Record<string, { allowedContentTypes: string[]; maxSize: number }> = {
+  [FileType.IMAGE]: {
+    allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    maxSize: 10 * 1024 * 1024, // 10MB
+  },
+  [FileType.DOCUMENT]: {
+    allowedContentTypes: ['application/pdf'],
+    maxSize: 20 * 1024 * 1024, // 20MB
+  },
+};
 
 @Injectable()
 export class FilesService implements OnModuleInit {
@@ -40,6 +52,14 @@ export class FilesService implements OnModuleInit {
     });
     if (!vehicleCase) {
       throw new NotFoundException('Case not found');
+    }
+
+    // MIME 타입 검증
+    const rules = FILE_TYPE_RULES[dto.fileType];
+    if (rules && !rules.allowedContentTypes.includes(dto.contentType)) {
+      throw new BadRequestException(
+        `Content type '${dto.contentType}' is not allowed for file type ${dto.fileType}. Allowed: ${rules.allowedContentTypes.join(', ')}`,
+      );
     }
 
     // 파일 확장자 추출
@@ -101,6 +121,20 @@ export class FilesService implements OnModuleInit {
 
     // MinIO에서 실제 업로드 확인
     const stat = await this.minio.statObject(this.bucketName, caseFile.objectKey);
+
+    // 파일 크기 검증
+    const rules = FILE_TYPE_RULES[caseFile.fileType];
+    if (rules && stat.size > rules.maxSize) {
+      // 초과 파일 삭제
+      await this.minio.removeObject(this.bucketName, caseFile.objectKey);
+      await this.prisma.caseFile.update({
+        where: { id: fileId },
+        data: { status: FileStatus.DELETED },
+      });
+      throw new BadRequestException(
+        `File size ${stat.size} exceeds maximum ${rules.maxSize} bytes for type ${caseFile.fileType}`,
+      );
+    }
 
     const updated = await this.prisma.caseFile.update({
       where: { id: fileId },

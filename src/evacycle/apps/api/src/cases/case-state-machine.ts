@@ -4,6 +4,7 @@ export interface TransitionRule {
   fromStatus: CaseStatus[];
   toStatus: CaseStatus;
   allowedRoles: UserRole[];
+  requiredPayloadFields?: string[];
 }
 
 export const CASE_TRANSITIONS: Record<string, TransitionRule> = {
@@ -21,15 +22,18 @@ export const CASE_TRANSITIONS: Record<string, TransitionRule> = {
     fromStatus: [CaseStatus.SUBMITTED],
     toStatus: CaseStatus.IN_TRANSIT,
     allowedRoles: [UserRole.JUNKYARD, UserRole.ADMIN],
+    requiredPayloadFields: ['signedBy', 'signedAt'],
   },
   [EventType.INTAKE_CONFIRMED]: {
     fromStatus: [CaseStatus.IN_TRANSIT],
     toStatus: CaseStatus.RECEIVED,
     allowedRoles: [UserRole.INTAKE_JUNKYARD, UserRole.HUB, UserRole.ADMIN],
+    requiredPayloadFields: ['receivedBy', 'receivedAt'],
   },
   [EventType.CASE_CANCELLED]: {
     fromStatus: [CaseStatus.DRAFT, CaseStatus.SUBMITTED],
     toStatus: CaseStatus.CANCELLED,
     allowedRoles: [UserRole.OWNER, UserRole.JUNKYARD, UserRole.ADMIN],
+    requiredPayloadFields: ['reason'],
   },
 };
