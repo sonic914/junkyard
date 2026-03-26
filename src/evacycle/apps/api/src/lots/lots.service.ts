@@ -41,9 +41,8 @@ export class LotsService {
         where: { id: caseId },
       });
       if (
-        ![CaseStatus.GRADING, CaseStatus.ON_SALE].includes(
-          vehicleCase.status as CaseStatus,
-        )
+        vehicleCase.status !== CaseStatus.GRADING &&
+        vehicleCase.status !== CaseStatus.ON_SALE
       ) {
         throw new ConflictException(
           'Case must be in GRADING or ON_SALE status',
