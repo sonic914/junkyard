@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './auth/auth.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { CasesModule } from './cases/cases.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
 
 @Module({
   imports: [
@@ -27,10 +31,25 @@ import { CasesModule } from './cases/cases.module';
     // Prisma 데이터베이스 모듈
     PrismaModule,
 
+    // 인증 모듈
+    AuthModule,
+
     // Phase 1 모듈
     LedgerModule,
     CasesModule,
   ],
   controllers: [AppController],
+  providers: [
+    // 글로벌 JWT 인증 가드
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    // 글로벌 RBAC 역할 가드
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}

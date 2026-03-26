@@ -1,7 +1,12 @@
-import { Controller, Post, Get, Param, Body } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Request } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { LedgerService } from './ledger.service';
 import { AppendEventDto } from './dto/append-event.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 
+@ApiTags('Ledger')
+@ApiBearerAuth()
 @Controller('cases/:caseId/events')
 export class LedgerController {
   constructor(private readonly ledgerService: LedgerService) {}
@@ -10,10 +15,9 @@ export class LedgerController {
   async appendEvent(
     @Param('caseId') caseId: string,
     @Body() dto: AppendEventDto,
+    @Request() req: any,
   ) {
-    // TODO: actorId는 JWT에서 추출 — CP1에서는 임시로 body 또는 하드코딩
-    const actorId = 'temp-actor-id';
-    return this.ledgerService.appendEvent(caseId, actorId, dto.eventType, dto.payload);
+    return this.ledgerService.appendEvent(caseId, req.user.sub, dto.eventType, dto.payload);
   }
 
   @Get()
@@ -22,6 +26,7 @@ export class LedgerController {
   }
 
   @Get('verify')
+  @Roles(UserRole.ADMIN)
   async verify(@Param('caseId') caseId: string) {
     const result = await this.ledgerService.verifyChain(caseId);
     const events = await this.ledgerService.findAllByCaseId(caseId);

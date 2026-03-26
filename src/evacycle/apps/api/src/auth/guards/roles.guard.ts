@@ -7,7 +7,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { UserWithoutPassword } from '../../users/users.service';
 
 /**
  * RBAC 역할 가드
@@ -28,9 +27,7 @@ export class RolesGuard implements CanActivate {
     // 역할 제한이 없으면 통과
     if (!requiredRoles || requiredRoles.length === 0) return true;
 
-    const { user } = context.switchToHttp().getRequest<{
-      user: UserWithoutPassword;
-    }>();
+    const { user } = context.switchToHttp().getRequest();
 
     if (!user) {
       throw new ForbiddenException('접근 권한이 없습니다.');

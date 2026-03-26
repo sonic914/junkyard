@@ -61,7 +61,8 @@ export class LedgerService {
       orderBy: { seq: 'asc' },
     });
 
-    for (const event of events) {
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
       const expectedHash = computeSelfHash({
         caseId: event.caseId,
         seq: event.seq,
@@ -76,7 +77,8 @@ export class LedgerService {
         return { isValid: false, brokenAt: event.seq };
       }
 
-      const prevEvent = events[event.seq - 2]; // seq는 1부터 시작
+      // 배열 인덱스로 이전 이벤트 참조 (seq gap 있어도 안전)
+      const prevEvent = i > 0 ? events[i - 1] : null;
       const expectedPrevHash = prevEvent?.selfHash ?? '0'.repeat(64);
       if (event.prevHash !== expectedPrevHash) {
         return { isValid: false, brokenAt: event.seq };

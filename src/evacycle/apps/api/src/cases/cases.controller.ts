@@ -7,27 +7,30 @@ import {
   Query,
   DefaultValuePipe,
   ParseIntPipe,
+  Request,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { CasesService } from './cases.service';
 import { CreateCaseDto } from './dto/create-case.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 
+@ApiTags('Cases')
+@ApiBearerAuth()
 @Controller('cases')
 export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
   @Post()
-  async create(@Body() dto: CreateCaseDto) {
-    // TODO: actorId, orgId는 JWT에서 추출 — CP1에서는 임시값
-    const actorId = 'temp-actor-id';
-    const orgId = 'temp-org-id';
-    return this.casesService.createCase(dto, actorId, orgId);
+  @Roles(UserRole.OWNER, UserRole.JUNKYARD, UserRole.ADMIN)
+  async create(@Body() dto: CreateCaseDto, @Request() req: any) {
+    return this.casesService.createCase(dto, req.user.sub, req.user.orgId);
   }
 
   @Post(':id/submit')
-  async submit(@Param('id') id: string) {
-    // TODO: actorId는 JWT에서 추출
-    const actorId = 'temp-actor-id';
-    return this.casesService.submitCase(id, actorId);
+  @Roles(UserRole.OWNER, UserRole.JUNKYARD, UserRole.ADMIN)
+  async submit(@Param('id') id: string, @Request() req: any) {
+    return this.casesService.submitCase(id, req.user.sub);
   }
 
   @Get()

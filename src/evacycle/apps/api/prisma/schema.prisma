@@ -61,7 +61,7 @@ enum SettleStatus {
   PENDING
   APPROVED
   PAID
-  FAILED
+  DISPUTED
 }
 
 // ────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ model User {
   email        String    @unique @db.VarChar(255)
   name         String    @db.VarChar(100)
   role         UserRole
-  passwordHash String
+  otpSecret    String?   @db.VarChar(100)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -116,7 +116,7 @@ model VehicleCase {
   hubOrgId     String?
   createdBy    String
   caseNo       String     @unique @db.VarChar(30)
-  vin          String?    @db.VarChar(17)
+  vin          String?    @unique @db.VarChar(17)
   vehicleMaker String     @db.VarChar(50)
   vehicleModel String     @db.VarChar(50)
   vehicleYear  Int        @db.SmallInt

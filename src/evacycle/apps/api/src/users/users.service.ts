@@ -1,24 +1,15 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, UserRole, Prisma } from '@prisma/client';
-
-export type UserWithoutPassword = Omit<User, 'passwordHash'>;
+import { UserRole, Prisma } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * 이메일로 유저 조회 (비밀번호 포함 — 로그인 검증용)
+   * ID로 유저 조회
    */
-  async findByEmailWithPassword(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { email } });
-  }
-
-  /**
-   * ID로 유저 조회 (비밀번호 제외)
-   */
-  async findById(id: string): Promise<UserWithoutPassword> {
+  async findById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -26,11 +17,9 @@ export class UsersService {
         email: true,
         name: true,
         role: true,
-        phone: true,
-        profileImageUrl: true,
+        orgId: true,
         isActive: true,
         lastLoginAt: true,
-        organizationId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -44,9 +33,9 @@ export class UsersService {
   }
 
   /**
-   * 이메일로 유저 조회 (비밀번호 제외)
+   * 이메일로 유저 조회
    */
-  async findByEmail(email: string): Promise<UserWithoutPassword | null> {
+  async findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
       select: {
@@ -54,61 +43,13 @@ export class UsersService {
         email: true,
         name: true,
         role: true,
-        phone: true,
-        profileImageUrl: true,
+        orgId: true,
         isActive: true,
         lastLoginAt: true,
-        organizationId: true,
         createdAt: true,
         updatedAt: true,
       },
     });
-  }
-
-  /**
-   * 유저 생성
-   */
-  async create(data: {
-    email: string;
-    passwordHash: string;
-    name: string;
-    role?: UserRole;
-    organizationId?: string;
-    phone?: string;
-  }): Promise<UserWithoutPassword> {
-    // 이메일 중복 검사
-    const existing = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
-    if (existing) {
-      throw new ConflictException('이미 사용 중인 이메일입니다.');
-    }
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: data.email,
-        passwordHash: data.passwordHash,
-        name: data.name,
-        role: data.role ?? UserRole.VIEWER,
-        organizationId: data.organizationId,
-        phone: data.phone,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        phone: true,
-        profileImageUrl: true,
-        isActive: true,
-        lastLoginAt: true,
-        organizationId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return user;
   }
 
   /**
@@ -125,13 +66,13 @@ export class UsersService {
    * 유저 목록 조회 (관리자용)
    */
   async findAll(params?: {
-    organizationId?: string;
+    orgId?: string;
     role?: UserRole;
     skip?: number;
     take?: number;
-  }): Promise<{ data: UserWithoutPassword[]; total: number }> {
+  }): Promise<{ data: any[]; total: number }> {
     const where: Prisma.UserWhereInput = {
-      ...(params?.organizationId && { organizationId: params.organizationId }),
+      ...(params?.orgId && { orgId: params.orgId }),
       ...(params?.role && { role: params.role }),
     };
 
@@ -145,11 +86,9 @@ export class UsersService {
           email: true,
           name: true,
           role: true,
-          phone: true,
-          profileImageUrl: true,
+          orgId: true,
           isActive: true,
           lastLoginAt: true,
-          organizationId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -159,37 +98,5 @@ export class UsersService {
     ]);
 
     return { data, total };
-  }
-
-  /**
-   * 유저 정보 수정
-   */
-  async update(
-    id: string,
-    data: Partial<{
-      name: string;
-      phone: string;
-      profileImageUrl: string;
-      isActive: boolean;
-      role: UserRole;
-    }>,
-  ): Promise<UserWithoutPassword> {
-    return this.prisma.user.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        phone: true,
-        profileImageUrl: true,
-        isActive: true,
-        lastLoginAt: true,
-        organizationId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
   }
 }

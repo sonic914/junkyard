@@ -89,19 +89,49 @@ export class CasesService {
       throw new ConflictException('Case can only be submitted from DRAFT status');
     }
 
-    const updated = await this.prisma.vehicleCase.update({
-      where: { id: caseId },
-      data: { status: CaseStatus.SUBMITTED },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.vehicleCase.update({
+        where: { id: caseId },
+        data: { status: CaseStatus.SUBMITTED },
+      });
+
+      // 트랜잭션 내에서 직접 이벤트 기록
+      const lastEvent = await tx.eventLedger.findFirst({
+        where: { caseId },
+        orderBy: { seq: 'desc' },
+      });
+
+      const seq = (lastEvent?.seq ?? 0) + 1;
+      const prevHash = lastEvent?.selfHash ?? '0'.repeat(64);
+      const createdAt = new Date();
+      const payload = { previousStatus: CaseStatus.DRAFT, newStatus: CaseStatus.SUBMITTED };
+
+      const { computeSelfHash } = await import('../ledger/hash.util');
+      const selfHash = computeSelfHash({
+        caseId,
+        seq,
+        eventType: EventType.CASE_SUBMITTED,
+        actorId,
+        prevHash,
+        payload,
+        createdAt,
+      });
+
+      await tx.eventLedger.create({
+        data: {
+          caseId,
+          actorId,
+          seq,
+          eventType: EventType.CASE_SUBMITTED,
+          payload,
+          prevHash,
+          selfHash,
+          createdAt,
+        },
+      });
+
+      return updated;
     });
-
-    await this.ledgerService.appendEvent(
-      caseId,
-      actorId,
-      EventType.CASE_SUBMITTED,
-      { previousStatus: CaseStatus.DRAFT, newStatus: CaseStatus.SUBMITTED },
-    );
-
-    return updated;
   }
 
   async findAll(skip: number, take: number) {

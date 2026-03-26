@@ -1,23 +1,21 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { UsersService } from '../../users/users.service';
 
 export interface JwtPayload {
   sub: string;       // userId
   email: string;
   role: string;
+  orgId: string;
+  jti?: string;
   iat?: number;
   exp?: number;
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly usersService: UsersService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -27,14 +25,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   /**
    * JWT 검증 후 request.user 에 주입될 객체 반환
+   * payload를 그대로 반환 (DB 조회 불필요 — OTP 기반이므로)
    */
   async validate(payload: JwtPayload) {
-    const user = await this.usersService.findById(payload.sub);
-
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('비활성화된 계정입니다.');
-    }
-
-    return user; // req.user 로 주입됨
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      orgId: payload.orgId,
+      jti: payload.jti,
+    };
   }
 }
