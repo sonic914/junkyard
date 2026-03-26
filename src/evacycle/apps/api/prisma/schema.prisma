@@ -1,0 +1,225 @@
+// ─────────────────────────────────────────────────────────
+// EVACYCLE Prisma Schema
+// 전기차 배터리 재활용 플랫폼 데이터 모델
+// ─────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────
+// Enums
+// ────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN   // 슈퍼 관리자 (플랫폼 운영)
+  ORG_ADMIN     // 조직 관리자
+  INSPECTOR     // 배터리 검수 담당자
+  VIEWER        // 조회 전용
+}
+
+enum OrganizationType {
+  MANUFACTURER  // 완성차 제조사
+  RECYCLER      // 배터리 재활용업체
+  DEALER        // 딜러 / 중고차 매매
+  REGULATOR     // 규제 기관
+}
+
+enum CaseStatus {
+  PENDING       // 접수 대기
+  INSPECTING    // 검수 중
+  APPROVED      // 승인 완료
+  REJECTED      // 반려
+  SETTLED       // 정산 완료
+  CLOSED        // 종결
+}
+
+enum EventType {
+  CASE_CREATED         // 케이스 생성
+  INSPECTION_STARTED   // 검수 시작
+  INSPECTION_COMPLETED // 검수 완료
+  DOCUMENT_UPLOADED    // 문서 업로드
+  APPROVED             // 승인
+  REJECTED             // 반려
+  SETTLEMENT_INITIATED // 정산 시작
+  SETTLEMENT_COMPLETED // 정산 완료
+  BLOCKCHAIN_ANCHORED  // 블록체인 기록 완료
+}
+
+enum SettlementStatus {
+  PENDING    // 정산 대기
+  PROCESSING // 정산 처리 중
+  COMPLETED  // 정산 완료
+  FAILED     // 정산 실패
+  CANCELLED  // 취소
+}
+
+// ────────────────────────────────────────────────────────
+// Organization (조직)
+// ────────────────────────────────────────────────────────
+model Organization {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  type        OrganizationType
+  bizNumber   String?          @unique @map("biz_number") // 사업자등록번호
+  address     String?
+  phone       String?
+  email       String?
+  logoUrl     String?          @map("logo_url")
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  users        User[]
+  vehicleCases VehicleCase[]
+  settlements  Settlement[]
+
+  @@map("organizations")
+}
+
+// ────────────────────────────────────────────────────────
+// User (사용자)
+// ────────────────────────────────────────────────────────
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  name           String
+  role           UserRole @default(VIEWER)
+  phone          String?
+  profileImageUrl String? @map("profile_image_url")
+  isActive       Boolean  @default(true) @map("is_active")
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // FK
+  organizationId String? @map("organization_id")
+
+  // Relations
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  eventLedger  EventLedger[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+// ────────────────────────────────────────────────────────
+// VehicleCase (차량 배터리 케이스)
+// ────────────────────────────────────────────────────────
+model VehicleCase {
+  id               String     @id @default(cuid())
+  caseNumber       String     @unique @map("case_number") // 케이스 고유번호 (예: EVC-2025-00001)
+  vin              String     @unique // Vehicle Identification Number
+  make             String     // 제조사 (예: Tesla, Hyundai)
+  model            String     // 모델명 (예: Model 3, IONIQ 5)
+  year             Int        // 연식
+  color            String?
+
+  // 배터리 정보
+  batteryCapacityKwh Float?   @map("battery_capacity_kwh")  // 배터리 용량 (kWh)
+  batteryHealthPercent Float? @map("battery_health_percent") // 배터리 건강도 (%)
+  batterySerialNumber  String? @unique @map("battery_serial_number")
+  batteryChemistry     String? @map("battery_chemistry")    // LFP, NMC 등
+  estimatedRangeKm     Int?    @map("estimated_range_km")
+
+  // 차량 상태
+  mileageKm        Int?       @map("mileage_km")
+  status           CaseStatus @default(PENDING)
+  rejectionReason  String?    @map("rejection_reason")
+  notes            String?
+
+  // 타임스탬프
+  receivedAt       DateTime?  @map("received_at")
+  inspectedAt      DateTime?  @map("inspected_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  // FK
+  organizationId   String     @map("organization_id")
+
+  // Relations
+  organization     Organization  @relation(fields: [organizationId], references: [id])
+  eventLedger      EventLedger[]
+  settlement       Settlement?
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([vin])
+  @@map("vehicle_cases")
+}
+
+// ────────────────────────────────────────────────────────
+// EventLedger (이벤트 원장)
+// 모든 케이스 이력을 불변 로그로 기록 (audit trail)
+// ────────────────────────────────────────────────────────
+model EventLedger {
+  id              String    @id @default(cuid())
+  eventType       EventType @map("event_type")
+  description     String?
+  metadata        Json?     // 이벤트 상세 데이터 (자유 형식)
+
+  // 블록체인 앵커링 정보
+  blockchainTxHash  String?  @unique @map("blockchain_tx_hash")
+  blockchainNetwork String?  @map("blockchain_network") // mainnet, polygon, etc.
+  blockNumber       BigInt?  @map("block_number")
+  anchoredAt        DateTime? @map("anchored_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // FK
+  vehicleCaseId   String    @map("vehicle_case_id")
+  createdBy       String?   @map("created_by") // userId
+
+  // Relations
+  vehicleCase     VehicleCase @relation(fields: [vehicleCaseId], references: [id])
+  user            User?       @relation(fields: [createdBy], references: [id])
+
+  @@index([vehicleCaseId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("event_ledger")
+}
+
+// ────────────────────────────────────────────────────────
+// Settlement (정산)
+// 배터리 재활용 대금 정산 내역
+// ────────────────────────────────────────────────────────
+model Settlement {
+  id              String          @id @default(cuid())
+  settlementNumber String         @unique @map("settlement_number") // 정산번호
+  amountKrw       Decimal         @map("amount_krw") @db.Decimal(15, 2) // 정산 금액 (원)
+  taxAmountKrw    Decimal         @default(0) @map("tax_amount_krw") @db.Decimal(15, 2)
+  netAmountKrw    Decimal         @map("net_amount_krw") @db.Decimal(15, 2)
+  status          SettlementStatus @default(PENDING)
+  paymentMethod   String?         @map("payment_method")
+  bankAccount     String?         @map("bank_account") // 암호화 저장 필요
+  bankName        String?         @map("bank_name")
+  transactionRef  String?         @unique @map("transaction_ref") // 외부 결제 참조 번호
+  notes           String?
+
+  // 정산 일정
+  scheduledAt     DateTime?       @map("scheduled_at")
+  processedAt     DateTime?       @map("processed_at")
+  completedAt     DateTime?       @map("completed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // FK
+  vehicleCaseId   String          @unique @map("vehicle_case_id") // 케이스당 1건
+  organizationId  String          @map("organization_id")
+
+  // Relations
+  vehicleCase     VehicleCase     @relation(fields: [vehicleCaseId], references: [id])
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("settlements")
+}
