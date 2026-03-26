@@ -76,6 +76,51 @@ enum FileStatus {
 }
 
 // ────────────────────────────────────────────────────────
+// CP3 Enums (그레이딩 + Lot + Listing)
+// ────────────────────────────────────────────────────────
+
+enum PartType {
+  BATTERY
+  MOTOR
+  INVERTER
+  BODY
+  OTHER
+}
+
+enum ReuseGrade {
+  A    // 즉시 재사용 가능
+  B    // 경미한 보수 후 재사용
+  C    // 제한적 재사용 (특정 용도)
+  D    // 재사용 불가
+}
+
+enum RecycleGrade {
+  R1   // 고순도 자원 회수 가능
+  R2   // 일반 자원 회수
+  R3   // 회수 어려움 / 처리 비용 발생
+}
+
+enum RoutingDecision {
+  REUSE      // 재사용 경로 → Lot 생성
+  RECYCLE    // 재활용 경로 → Lot 생성
+  DISCARD    // 폐기 → Lot 미생성
+}
+
+enum LotStatus {
+  PENDING    // 생성됨, 미등록
+  ON_SALE    // 판매 등록됨
+  SOLD       // 구매 완료
+  SETTLED    // 정산 완료
+}
+
+enum ListingStatus {
+  DRAFT      // 초안
+  ACTIVE     // 판매 중
+  SOLD       // 판매 완료
+  CANCELLED  // 취소됨
+}
+
+// ────────────────────────────────────────────────────────
 // Organization (조직)
 // ────────────────────────────────────────────────────────
 model Organization {
@@ -116,6 +161,8 @@ model User {
   ledgerEvents EventLedger[]
   approvedSettlements Settlement[]
   uploadedFiles CaseFile[]
+  gradings          Grading[]
+  purchasedListings Listing[]
 }
 
 // ────────────────────────────────────────────────────────
@@ -144,6 +191,8 @@ model VehicleCase {
   ledger     EventLedger[]
   files      CaseFile[]
   settlement Settlement?
+  gradings   Grading[]
+  lots       DerivedLot[]
 
   @@index([orgId])
   @@index([status])
@@ -222,4 +271,90 @@ model CaseFile {
   @@index([caseId])
   @@index([eventId])
   @@index([status])
+}
+
+// ────────────────────────────────────────────────────────
+// GradingRule (그레이딩 기준 — partType별 조건)
+// ────────────────────────────────────────────────────────
+model GradingRule {
+  id                String    @id @default(uuid())
+  partType          PartType
+  reuseConditions   Json      // { "A": {"maxAge":5,"minCapacity":80}, "B": {...}, ... }
+  recycleConditions Json      // { "R1": {"minPurity":90}, "R2": {...}, ... }
+  version           Int       @default(1)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([partType, version])
+  @@index([partType, isActive])
+}
+
+// ────────────────────────────────────────────────────────
+// Grading (그레이딩 결과)
+// ────────────────────────────────────────────────────────
+model Grading {
+  id               String           @id @default(uuid())
+  caseId           String
+  actorId          String
+  partType         PartType
+  reuseGrade       ReuseGrade
+  recycleGrade     RecycleGrade
+  routingDecision  RoutingDecision
+  notes            String?
+  ruleSnapshot     Json?            // 적용된 GradingRule 스냅샷 (감사용)
+  createdAt        DateTime         @default(now())
+
+  case  VehicleCase @relation(fields: [caseId], references: [id])
+  actor User        @relation(fields: [actorId], references: [id])
+
+  @@index([caseId])
+}
+
+// ────────────────────────────────────────────────────────
+// DerivedLot (파생 Lot — Case에서 추출된 부품/자원)
+// ────────────────────────────────────────────────────────
+model DerivedLot {
+  id               String           @id @default(uuid())
+  caseId           String
+  lotNo            String           @unique @db.VarChar(30)
+  partType         PartType
+  routingDecision  RoutingDecision
+  reuseGrade       ReuseGrade?
+  recycleGrade     RecycleGrade?
+  quantity         Int              @default(1)
+  weightKg         Decimal          @db.Decimal(8, 2)
+  status           LotStatus        @default(PENDING)
+  description      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  case     VehicleCase @relation(fields: [caseId], references: [id])
+  listing  Listing?
+
+  @@index([caseId])
+  @@index([status])
+  @@index([partType])
+}
+
+// ────────────────────────────────────────────────────────
+// Listing (판매 등록 — MVP: 고정가만)
+// ────────────────────────────────────────────────────────
+model Listing {
+  id           String        @id @default(uuid())
+  lotId        String        @unique
+  type         String        @default("FIXED_PRICE") @db.VarChar(20)
+  price        Decimal       @db.Decimal(12, 2)
+  currency     String        @default("KRW") @db.Char(3)
+  status       ListingStatus @default(DRAFT)
+  buyerId      String?
+  purchasedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  lot   DerivedLot @relation(fields: [lotId], references: [id])
+  buyer User?      @relation(fields: [buyerId], references: [id])
+
+  @@index([status])
+  @@index([buyerId])
 }

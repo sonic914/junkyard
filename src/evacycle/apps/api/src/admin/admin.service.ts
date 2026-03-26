@@ -6,7 +6,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrganizationDto } from './dto/create-org.dto';
 import { UpdateOrganizationDto } from './dto/update-org.dto';
-import { OrgType } from '@prisma/client';
+import { CreateGradingRuleDto } from './dto/create-grading-rule.dto';
+import { OrgType, PartType } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -95,5 +96,48 @@ export class AdminService {
     }
 
     return this.prisma.organization.delete({ where: { id } });
+  }
+
+  // ── GradingRule CRUD (CP3) ──
+
+  async createGradingRule(dto: CreateGradingRuleDto) {
+    return this.prisma.$transaction(async (tx) => {
+      // 동일 partType의 최신 버전 조회
+      const latest = await tx.gradingRule.findFirst({
+        where: { partType: dto.partType },
+        orderBy: { version: 'desc' },
+      });
+
+      const newVersion = (latest?.version ?? 0) + 1;
+
+      // 기존 활성 규칙 비활성화
+      if (latest?.isActive) {
+        await tx.gradingRule.updateMany({
+          where: { partType: dto.partType, isActive: true },
+          data: { isActive: false },
+        });
+      }
+
+      return tx.gradingRule.create({
+        data: {
+          partType: dto.partType,
+          reuseConditions: dto.reuseConditions,
+          recycleConditions: dto.recycleConditions,
+          version: newVersion,
+          isActive: true,
+        },
+      });
+    });
+  }
+
+  async findAllGradingRules(partType?: PartType, activeOnly = true) {
+    const where: any = {};
+    if (partType) where.partType = partType;
+    if (activeOnly) where.isActive = true;
+
+    return this.prisma.gradingRule.findMany({
+      where,
+      orderBy: [{ partType: 'asc' }, { version: 'desc' }],
+    });
   }
 }

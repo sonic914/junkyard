@@ -10,6 +10,8 @@ import { LedgerModule } from './ledger/ledger.module';
 import { CasesModule } from './cases/cases.module';
 import { FilesModule } from './files/files.module';
 import { AdminModule } from './admin/admin.module';
+import { GradingModule } from './grading/grading.module';
+import { LotsModule } from './lots/lots.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -43,6 +45,10 @@ import { RolesGuard } from './auth/guards/roles.guard';
     // Phase 2 모듈
     FilesModule,
     AdminModule,
+
+    // Phase 3 모듈
+    GradingModule,
+    LotsModule,
   ],
   controllers: [AppController],
   providers: [
