@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { EventType, Prisma } from '@prisma/client';
+import { EventType, Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeSelfHash } from './hash.util';
+
+type PrismaTransactionClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 @Injectable()
 export class LedgerService {
@@ -12,9 +14,12 @@ export class LedgerService {
     actorId: string,
     eventType: EventType,
     payload: Record<string, unknown>,
+    tx?: PrismaTransactionClient,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const lastEvent = await tx.eventLedger.findFirst({
+    const client = tx ?? this.prisma;
+
+    const doAppend = async (db: PrismaTransactionClient) => {
+      const lastEvent = await db.eventLedger.findFirst({
         where: { caseId },
         orderBy: { seq: 'desc' },
       });
@@ -33,7 +38,7 @@ export class LedgerService {
         createdAt,
       });
 
-      return tx.eventLedger.create({
+      return db.eventLedger.create({
         data: {
           caseId,
           actorId,
@@ -45,7 +50,13 @@ export class LedgerService {
           createdAt,
         },
       });
-    });
+    };
+
+    // tx가 전달되면 그 안에서 실행, 아니면 자체 트랜잭션
+    if (tx) {
+      return doAppend(client);
+    }
+    return this.prisma.$transaction(async (innerTx) => doAppend(innerTx));
   }
 
   async findAllByCaseId(caseId: string) {

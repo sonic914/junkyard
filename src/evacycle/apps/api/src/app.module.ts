@@ -8,6 +8,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { CasesModule } from './cases/cases.module';
+import { FilesModule } from './files/files.module';
+import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -37,6 +39,10 @@ import { RolesGuard } from './auth/guards/roles.guard';
     // Phase 1 모듈
     LedgerModule,
     CasesModule,
+
+    // Phase 2 모듈
+    FilesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

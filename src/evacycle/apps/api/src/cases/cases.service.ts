@@ -2,11 +2,16 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
-import { CaseStatus, EventType } from '@prisma/client';
+import { CaseStatus, EventType, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { CreateCaseDto } from './dto/create-case.dto';
+import { CASE_TRANSITIONS } from './case-state-machine';
+import { EVENT_LABELS } from '../common/constants/event-labels';
+import { computeSelfHash } from '../ledger/hash.util';
 
 @Injectable()
 export class CasesService {
@@ -17,7 +22,6 @@ export class CasesService {
 
   async createCase(dto: CreateCaseDto, actorId: string, orgId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // caseNo 생성: EVA-YYYYMM-NNNNN
       const now = new Date();
       const prefix = `EVA-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
       const count = await tx.vehicleCase.count({
@@ -39,10 +43,7 @@ export class CasesService {
         },
       });
 
-      // CASE_CREATED 이벤트를 원장에 기록
-      // 트랜잭션 내에서 직접 ledger insert (LedgerService는 자체 tx를 쓰므로 여기서는 직접)
       const createdAt = new Date();
-      const { computeSelfHash } = await import('../ledger/hash.util');
       const payload = {
         caseNo: vehicleCase.caseNo,
         vehicleMaker: vehicleCase.vehicleMaker,
@@ -76,7 +77,67 @@ export class CasesService {
     });
   }
 
-  async submitCase(caseId: string, actorId: string) {
+  async transitionCase(
+    caseId: string,
+    eventType: EventType,
+    actorId: string,
+    actorRole: UserRole,
+    payload?: Record<string, any>,
+  ) {
+    const rule = CASE_TRANSITIONS[eventType];
+    if (!rule) {
+      throw new BadRequestException(`Unknown event type: ${eventType}`);
+    }
+
+    if (!rule.allowedRoles.includes(actorRole)) {
+      throw new ForbiddenException(`Role ${actorRole} cannot perform ${eventType}`);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const vehicleCase = await tx.vehicleCase.findUnique({
+        where: { id: caseId },
+      });
+
+      if (!vehicleCase) {
+        throw new NotFoundException('Case not found');
+      }
+
+      if (!rule.fromStatus.includes(vehicleCase.status as CaseStatus)) {
+        throw new ConflictException(
+          `Cannot ${eventType} from status ${vehicleCase.status}`,
+        );
+      }
+
+      const updated = await tx.vehicleCase.update({
+        where: { id: caseId },
+        data: { status: rule.toStatus },
+      });
+
+      const event = await this.ledgerService.appendEvent(
+        caseId,
+        actorId,
+        eventType,
+        {
+          ...payload,
+          statusFrom: vehicleCase.status,
+          statusTo: rule.toStatus,
+        },
+        tx,
+      );
+
+      return { ...updated, event };
+    });
+  }
+
+  async submitCase(caseId: string, actorId: string, actorRole: UserRole) {
+    return this.transitionCase(caseId, EventType.CASE_SUBMITTED, actorId, actorRole);
+  }
+
+  async cancelCase(caseId: string, actorId: string, actorRole: UserRole, reason: string) {
+    return this.transitionCase(caseId, EventType.CASE_CANCELLED, actorId, actorRole, { reason });
+  }
+
+  async getTimeline(caseId: string) {
     const vehicleCase = await this.prisma.vehicleCase.findUnique({
       where: { id: caseId },
     });
@@ -85,53 +146,58 @@ export class CasesService {
       throw new NotFoundException('Case not found');
     }
 
-    if (vehicleCase.status !== CaseStatus.DRAFT) {
-      throw new ConflictException('Case can only be submitted from DRAFT status');
-    }
+    const events = await this.ledgerService.findAllByCaseId(caseId);
+    const { isValid } = await this.ledgerService.verifyChain(caseId);
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.vehicleCase.update({
-        where: { id: caseId },
-        data: { status: CaseStatus.SUBMITTED },
-      });
+    const timeline = await Promise.all(
+      events.map(async (event) => {
+        const actor = await this.prisma.user.findUnique({
+          where: { id: event.actorId },
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            org: { select: { name: true } },
+          },
+        });
 
-      // 트랜잭션 내에서 직접 이벤트 기록
-      const lastEvent = await tx.eventLedger.findFirst({
-        where: { caseId },
-        orderBy: { seq: 'desc' },
-      });
+        const files = await this.prisma.caseFile.findMany({
+          where: { caseId, eventId: event.id, status: { not: 'DELETED' } },
+          select: {
+            id: true,
+            fileName: true,
+            fileType: true,
+            objectKey: true,
+            uploadedAt: true,
+          },
+        });
 
-      const seq = (lastEvent?.seq ?? 0) + 1;
-      const prevHash = lastEvent?.selfHash ?? '0'.repeat(64);
-      const createdAt = new Date();
-      const payload = { previousStatus: CaseStatus.DRAFT, newStatus: CaseStatus.SUBMITTED };
+        return {
+          seq: event.seq,
+          eventType: event.eventType,
+          label: EVENT_LABELS[event.eventType] ?? event.eventType,
+          actor: actor
+            ? {
+                id: actor.id,
+                name: actor.name,
+                role: actor.role,
+                orgName: actor.org?.name,
+              }
+            : null,
+          payload: event.payload,
+          files,
+          createdAt: event.createdAt,
+        };
+      }),
+    );
 
-      const { computeSelfHash } = await import('../ledger/hash.util');
-      const selfHash = computeSelfHash({
-        caseId,
-        seq,
-        eventType: EventType.CASE_SUBMITTED,
-        actorId,
-        prevHash,
-        payload,
-        createdAt,
-      });
-
-      await tx.eventLedger.create({
-        data: {
-          caseId,
-          actorId,
-          seq,
-          eventType: EventType.CASE_SUBMITTED,
-          payload,
-          prevHash,
-          selfHash,
-          createdAt,
-        },
-      });
-
-      return updated;
-    });
+    return {
+      caseId,
+      caseNo: vehicleCase.caseNo,
+      currentStatus: vehicleCase.status,
+      timeline,
+      hashChainValid: isValid,
+    };
   }
 
   async findAll(skip: number, take: number) {

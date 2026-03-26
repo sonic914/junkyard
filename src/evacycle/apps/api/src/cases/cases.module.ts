@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { CasesService } from './cases.service';
 import { CasesController } from './cases.controller';
 import { LedgerModule } from '../ledger/ledger.module';
+import { CaseAccessGuard } from './guards/case-access.guard';
 
 @Module({
   imports: [LedgerModule],
   controllers: [CasesController],
-  providers: [CasesService],
-  exports: [CasesService],
+  providers: [CasesService, CaseAccessGuard],
+  exports: [CasesService, CaseAccessGuard],
 })
 export class CasesModule {}

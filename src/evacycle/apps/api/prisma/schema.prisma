@@ -64,6 +64,17 @@ enum SettleStatus {
   DISPUTED
 }
 
+enum FileType {
+  IMAGE
+  DOCUMENT
+}
+
+enum FileStatus {
+  PENDING
+  CONFIRMED
+  DELETED
+}
+
 // ────────────────────────────────────────────────────────
 // Organization (조직)
 // ────────────────────────────────────────────────────────
@@ -104,6 +115,7 @@ model User {
   createdCases VehicleCase[]
   ledgerEvents EventLedger[]
   approvedSettlements Settlement[]
+  uploadedFiles CaseFile[]
 }
 
 // ────────────────────────────────────────────────────────
@@ -130,6 +142,7 @@ model VehicleCase {
   hubOrg     Organization? @relation("CaseHubOrg", fields: [hubOrgId], references: [id])
   creator    User          @relation(fields: [createdBy], references: [id])
   ledger     EventLedger[]
+  files      CaseFile[]
   settlement Settlement?
 
   @@index([orgId])
@@ -153,6 +166,7 @@ model EventLedger {
 
   case  VehicleCase @relation(fields: [caseId], references: [id])
   actor User        @relation(fields: [actorId], references: [id])
+  files CaseFile[]
 
   @@unique([caseId, seq])
   @@index([caseId])
@@ -181,4 +195,31 @@ model Settlement {
   case     VehicleCase  @relation(fields: [caseId], references: [id])
   org      Organization @relation(fields: [orgId], references: [id])
   approver User?        @relation(fields: [approvedBy], references: [id])
+}
+
+// ────────────────────────────────────────────────────────
+// CaseFile (파일 업로드 메타데이터)
+// ────────────────────────────────────────────────────────
+model CaseFile {
+  id          String      @id @default(uuid())
+  caseId      String
+  eventId     String?
+  fileName    String
+  fileType    FileType
+  contentType String
+  objectKey   String
+  fileSize    Int?
+  status      FileStatus  @default(PENDING)
+  uploadedBy  String
+  uploadedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  case     VehicleCase  @relation(fields: [caseId], references: [id])
+  event    EventLedger? @relation(fields: [eventId], references: [id])
+  uploader User         @relation(fields: [uploadedBy], references: [id])
+
+  @@index([caseId])
+  @@index([eventId])
+  @@index([status])
 }
