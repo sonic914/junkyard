@@ -4,6 +4,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
+import { LedgerModule } from './ledger/ledger.module';
+import { CasesModule } from './cases/cases.module';
 
 @Module({
   imports: [
@@ -25,13 +27,9 @@ import { PrismaModule } from './prisma/prisma.module';
     // Prisma 데이터베이스 모듈
     PrismaModule,
 
-    // TODO: 기능 모듈들 (Phase 1 구현 시 추가)
-    // AuthModule,
-    // UsersModule,
-    // OrganizationsModule,
-    // VehicleCasesModule,
-    // EventLedgerModule,
-    // SettlementsModule,
+    // Phase 1 모듈
+    LedgerModule,
+    CasesModule,
   ],
   controllers: [AppController],
 })
