@@ -2,6 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/lib/store/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+const REFRESH_URL = '/auth/token/refresh';
 
 export const apiClient = axios.create({
   baseURL: `${API_URL}/v1`,
@@ -9,7 +10,7 @@ export const apiClient = axios.create({
   timeout: 10000,
 });
 
-// ─── Request 인터셉터: JWT 자동 주입 ───────────────────────────────────────
+// ─── Request 인터셉터: 메모리 토큰 자동 주입 ─────────────────────────────────
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = useAuthStore.getState().accessToken;
@@ -43,6 +44,12 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
+    // ✅ Medium fix: refresh 요청 자체가 401 → 무한루프 방지, 즉시 로그아웃
+    if (originalRequest.url?.includes(REFRESH_URL)) {
+      useAuthStore.getState().logout();
+      return Promise.reject(error);
+    }
+
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
     }
@@ -53,6 +60,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // 동시 다발 401 — 큐잉 처리
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         pendingQueue.push({ resolve, reject });
@@ -66,7 +74,7 @@ apiClient.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await axios.post(`${API_URL}/v1/auth/token/refresh`, {
+      const { data } = await axios.post(`${API_URL}/v1${REFRESH_URL}`, {
         refreshToken,
       });
       const { accessToken, refreshToken: newRefreshToken } = data;
