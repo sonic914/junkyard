@@ -3,6 +3,11 @@ import * as request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createTestApp, seedTestData, cleanupTestData } from './setup';
 import { getTestToken } from './helpers/auth.helper';
+import {
+  generateMockPresignedUrl,
+  simulateMockUpload,
+  validatePresignedUrl,
+} from './helpers/minio.helper';
 
 describe('Flow A — Happy Path (S1)', () => {
   let app: INestApplication;
@@ -48,6 +53,51 @@ describe('Flow A — Happy Path (S1)', () => {
     caseId = res.body.id;
     expect(res.body.status).toBe('DRAFT');
     expect(res.body.caseNo).toMatch(/^EVA-\d{6}-\d{5}$/);
+  });
+
+  it('Step 1.5: JUNKYARD — 파일 업로드 (presigned URL)', async () => {
+    // Presigned URL 요청
+    const presignedRes = await request(app.getHttpServer())
+      .post(`/v1/cases/${caseId}/files/presign`)
+      .set('Authorization', `Bearer ${yardToken}`)
+      .send({
+        filename: '차량등록증.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    expect(presignedRes.body.uploadUrl).toBeDefined();
+    expect(presignedRes.body.key).toBeDefined();
+
+    // Mock presigned URL 검증
+    const mockPresigned = generateMockPresignedUrl(caseId, '차량등록증.pdf');
+    expect(validatePresignedUrl(mockPresigned.uploadUrl)).toBe(true);
+
+    // Mock 업로드 시뮬레이션
+    const uploaded = simulateMockUpload(
+      mockPresigned,
+      '차량등록증.pdf',
+      'application/pdf',
+      102400,
+    );
+    expect(uploaded.key).toContain(`cases/${caseId}/files/`);
+    expect(uploaded.contentType).toBe('application/pdf');
+    expect(uploaded.size).toBe(102400);
+
+    // 파일 메타데이터 등록
+    const fileRes = await request(app.getHttpServer())
+      .post(`/v1/cases/${caseId}/files`)
+      .set('Authorization', `Bearer ${yardToken}`)
+      .send({
+        filename: '차량등록증.pdf',
+        contentType: 'application/pdf',
+        size: 102400,
+        key: presignedRes.body.key,
+      })
+      .expect(201);
+
+    expect(fileRes.body.filename).toBe('차량등록증.pdf');
+    expect(fileRes.body.caseId).toBe(caseId);
   });
 
   it('Step 2: JUNKYARD — Case 제출 (SUBMITTED) + M0 Settlement 자동생성', async () => {

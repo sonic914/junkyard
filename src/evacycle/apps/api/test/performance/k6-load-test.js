@@ -1,6 +1,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
 
 // Custom metrics
 const casesCreated = new Counter('cases_created');
@@ -8,13 +9,16 @@ const transitionDuration = new Trend('transition_duration', true);
 
 export const options = {
   stages: [
-    { duration: '1m', target: 10 },   // Ramp-up: 10 VU
-    { duration: '3m', target: 10 },   // Sustain: 10 VU
-    { duration: '1m', target: 50 },   // Peak: 50 VU
-    { duration: '2m', target: 50 },   // Sustain peak
-    { duration: '1m', target: 0 },    // Ramp-down
+    { duration: '30s', target: 10 },   // Stage 1: Ramp-up
+    { duration: '60s', target: 10 },   // Stage 2: Sustain
+    { duration: '30s', target: 50 },   // Stage 3: Peak
+    { duration: '30s', target: 10 },   // Stage 4: Ramp-down
+    { duration: '10s', target: 0 },    // Stage 5: Idle
   ],
   thresholds: {
+    'http_req_duration{name:auth}': ['p(95)<200'],         // 로그인 P95 <200ms
+    'http_req_duration{name:caseList}': ['p(95)<300'],     // Case목록 P95 <300ms
+    'http_req_duration{name:lotList}': ['p(95)<300'],      // Lot목록 P95 <300ms
     'http_req_duration{name:createCase}': ['p(95)<300'],
     'http_req_duration{name:transition}': ['p(95)<500'],
     'http_req_duration{name:timeline}': ['p(95)<500'],
@@ -59,6 +63,28 @@ export default function () {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${yardToken}`,
   };
+
+  group('List Endpoints SLA', () => {
+    // Case 목록 조회
+    const caseListRes = http.get(`${BASE_URL}/cases`, {
+      headers,
+      tags: { name: 'caseList' },
+    });
+
+    check(caseListRes, {
+      'case list ok (200)': (r) => r.status === 200,
+    });
+
+    // Lot 목록 조회
+    const lotListRes = http.get(`${BASE_URL}/lots`, {
+      headers,
+      tags: { name: 'lotList' },
+    });
+
+    check(lotListRes, {
+      'lot list ok (200)': (r) => r.status === 200,
+    });
+  });
 
   group('Case Lifecycle', () => {
     // 1. Case 생성
@@ -170,4 +196,11 @@ export function setup() {
 // Teardown — 결과 요약
 export function teardown(data) {
   console.log('Load test completed.');
+}
+
+// 커스텀 리포트 출력
+export function handleSummary(data) {
+  return {
+    stdout: textSummary(data, { indent: ' ', enableColors: true }),
+  };
 }
