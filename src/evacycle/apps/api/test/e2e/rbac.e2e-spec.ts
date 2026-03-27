@@ -21,8 +21,7 @@ describe('RBAC — Negative Cases (403/401)', () => {
     buyerToken = await getTestToken(app, seed.buyerUser);
     yardToken = await getTestToken(app, seed.yardUser);
 
-    // JUNKYARD로 Case + Settlement 생성 (테스트 데이터)
-    const adminToken = await getTestToken(app, seed.adminUser);
+    // JUNKYARD로 Case 생성
     const caseRes = await request(app.getHttpServer())
       .post('/v1/cases')
       .set('Authorization', `Bearer ${yardToken}`)
@@ -62,9 +61,9 @@ describe('RBAC — Negative Cases (403/401)', () => {
         vehicleModel: 'K5',
         vehicleYear: 2021,
         vin: 'KNAE351CBLU000001',
-      })
-      .expect(403);
+      });
 
+    expect(res.status).toBe(403);
     expect(res.body.message).toBeDefined();
   });
 
@@ -72,17 +71,16 @@ describe('RBAC — Negative Cases (403/401)', () => {
     const res = await request(app.getHttpServer())
       .patch(`/v1/admin/settlements/${settlementId}`)
       .set('Authorization', `Bearer ${yardToken}`)
-      .send({ status: 'APPROVED' })
-      .expect(403);
+      .send({ status: 'APPROVED' });
 
+    expect(res.status).toBe(403);
     expect(res.body.message).toBeDefined();
   });
 
   it('TC3: 토큰 없이 GET /v1/cases → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/v1/cases')
-      .expect(401);
+    const res = await request(app.getHttpServer()).get('/v1/cases');
 
+    expect(res.status).toBe(401);
     expect(res.body.message).toBeDefined();
   });
 
@@ -96,9 +94,9 @@ describe('RBAC — Negative Cases (403/401)', () => {
         recycleGrade: 'R1',
         routingDecision: 'REUSE',
         notes: 'RBAC 테스트',
-      })
-      .expect(403);
+      });
 
+    expect(res.status).toBe(403);
     expect(res.body.message).toBeDefined();
   });
 
@@ -106,9 +104,9 @@ describe('RBAC — Negative Cases (403/401)', () => {
     const res = await request(app.getHttpServer())
       .post('/v1/admin/settlements/batch-approve')
       .set('Authorization', `Bearer ${yardToken}`)
-      .send({ settlementIds: [settlementId] })
-      .expect(403);
+      .send({ settlementIds: [settlementId] });
 
+    expect(res.status).toBe(403);
     expect(res.body.message).toBeDefined();
   });
 });
