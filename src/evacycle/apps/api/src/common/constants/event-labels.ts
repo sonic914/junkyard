@@ -10,5 +10,7 @@ export const EVENT_LABELS: Record<string, string> = {
   [EventType.PURCHASE_COMPLETED]: '구매 완료',
   [EventType.SETTLEMENT_CREATED]: '정산 생성',
   [EventType.SETTLEMENT_APPROVED]: '정산 승인',
+  [EventType.SETTLEMENT_PAID]: '정산 지급 완료',
+  [EventType.SETTLEMENT_REJECTED]: '정산 거부',
   [EventType.CASE_CANCELLED]: '케이스 취소',
 };

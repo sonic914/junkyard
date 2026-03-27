@@ -12,6 +12,7 @@ import { FilesModule } from './files/files.module';
 import { AdminModule } from './admin/admin.module';
 import { GradingModule } from './grading/grading.module';
 import { LotsModule } from './lots/lots.module';
+import { SettlementsModule } from './settlements/settlements.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -49,6 +50,9 @@ import { RolesGuard } from './auth/guards/roles.guard';
     // Phase 3 모듈
     GradingModule,
     LotsModule,
+
+    // Phase 4 모듈
+    SettlementsModule,
   ],
   controllers: [AppController],
   providers: [

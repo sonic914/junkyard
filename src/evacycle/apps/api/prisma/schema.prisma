@@ -54,6 +54,8 @@ enum EventType {
   PURCHASE_COMPLETED
   SETTLEMENT_CREATED
   SETTLEMENT_APPROVED
+  SETTLEMENT_PAID
+  SETTLEMENT_REJECTED
   CASE_CANCELLED
 }
 
@@ -62,6 +64,23 @@ enum SettleStatus {
   APPROVED
   PAID
   DISPUTED
+}
+
+// ────────────────────────────────────────────────────────
+// CP4 Enums (M0+Δ 정산)
+// ────────────────────────────────────────────────────────
+
+enum SettlementType {
+  M0          // 최소보장금 (Conservative: PURCHASE_COMPLETED 트리거)
+  DELTA_1     // 그레이딩 완료 후 추가 정산
+  DELTA_2     // 판매 완료 후 최종 정산
+}
+
+enum SettlementStatus {
+  PENDING    // 생성됨, 승인 대기
+  APPROVED   // 관리자 승인 완료
+  PAID       // 지급 완료
+  REJECTED   // 거부됨
 }
 
 enum FileType {
@@ -163,6 +182,8 @@ model User {
   uploadedFiles CaseFile[]
   gradings          Grading[]
   purchasedListings Listing[]
+  settlementsAsYard     NewSettlement[] @relation("NewSettlementYardUser")
+  settlementsApproved   NewSettlement[] @relation("NewSettlementApprover")
 }
 
 // ────────────────────────────────────────────────────────
@@ -190,9 +211,10 @@ model VehicleCase {
   creator    User          @relation(fields: [createdBy], references: [id])
   ledger     EventLedger[]
   files      CaseFile[]
-  settlement Settlement?
-  gradings   Grading[]
-  lots       DerivedLot[]
+  settlement  Settlement?
+  settlements NewSettlement[]
+  gradings    Grading[]
+  lots        DerivedLot[]
 
   @@index([orgId])
   @@index([status])
@@ -329,8 +351,9 @@ model DerivedLot {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  case     VehicleCase @relation(fields: [caseId], references: [id])
-  listing  Listing?
+  case        VehicleCase     @relation(fields: [caseId], references: [id])
+  listing     Listing?
+  settlements NewSettlement[]
 
   @@index([caseId])
   @@index([status])
@@ -357,4 +380,72 @@ model Listing {
 
   @@index([status])
   @@index([buyerId])
+}
+
+// ────────────────────────────────────────────────────────
+// SettlementRule (정산 기준 — partType별 M0 기본금 + Delta 비율)
+// ────────────────────────────────────────────────────────
+model SettlementRule {
+  id              String    @id @default(uuid())
+  partType        PartType
+  m0BaseAmount    Decimal   @db.Decimal(12, 2)  // M0 기본 정산금
+  deltaRatio      Decimal   @db.Decimal(5, 2)   // 기본 Δ비율 (15.00 = 15%)
+  gradeBonusMap   Json?     // { "A": 20.0, "B": 10.0, "C": 5.0, "D": 0.0 } (%)
+  platformFeeRate Decimal   @db.Decimal(5, 4) @default(0.0500)  // 플랫폼 수수료율
+  currency        String    @default("KRW") @db.Char(3)
+  version         Int       @default(1)
+  isActive        Boolean   @default(true)
+  description     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([partType, version])
+  @@index([partType, isActive])
+}
+
+// ────────────────────────────────────────────────────────
+// NewSettlement (CP4 M0+Δ 정산 내역)
+// ────────────────────────────────────────────────────────
+model NewSettlement {
+  id               String           @id @default(uuid())
+  caseId           String
+  lotId            String?                          // DELTA_1/DELTA_2일 때 설정
+  yardUserId       String                           // 정산 대상 (수거업체 담당자)
+  type             SettlementType                   // M0, DELTA_1, DELTA_2
+  status           SettlementStatus @default(PENDING)
+
+  // 정산 금액 상세
+  grossAmount      Decimal          @db.Decimal(12, 2)  // 총액 (계산 기반)
+  feeRate          Decimal          @db.Decimal(5, 4)   // 플랫폼 수수료율
+  feeAmount        Decimal          @db.Decimal(12, 2)  // 수수료 금액
+  amount           Decimal          @db.Decimal(12, 2)  // 최종 지급액
+
+  currency         String           @default("KRW") @db.Char(3)
+
+  // 계산 근거
+  ruleSnapshot     Json?                            // 적용된 SettlementRule 스냅샷
+  calcDetail       Json?                            // 상세 계산 내역 (감사용)
+  triggeredByEvent String?                          // 트리거한 EventLedger.id
+
+  // 승인/거부
+  notes            String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  rejectedReason   String?
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  case       VehicleCase @relation(fields: [caseId], references: [id])
+  lot        DerivedLot? @relation(fields: [lotId], references: [id])
+  yardUser   User        @relation("NewSettlementYardUser", fields: [yardUserId], references: [id])
+  approver   User?       @relation("NewSettlementApprover", fields: [approvedBy], references: [id])
+
+  @@index([caseId])
+  @@index([lotId])
+  @@index([yardUserId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt(sort: Desc)])
 }

@@ -41,8 +41,8 @@ async function bootstrap() {
   if (env !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('EVACYCLE API')
-      .setDescription('전기차 배터리 재활용 플랫폼 REST API')
-      .setVersion('1.0')
+      .setDescription('EV 폐차 부품 재활용 플랫폼 API — Auth, Cases, Grading, Lots, Settlements, Admin')
+      .setVersion('1.0.0')
       .addBearerAuth(
         {
           type: 'http',
@@ -53,12 +53,15 @@ async function bootstrap() {
         },
         'access-token',
       )
-      .addTag('auth', '인증 / 로그인')
-      .addTag('users', '사용자 관리')
-      .addTag('organizations', '조직 관리')
-      .addTag('vehicle-cases', '차량 배터리 케이스')
-      .addTag('event-ledger', '이벤트 원장')
-      .addTag('settlements', '정산 관리')
+      .addTag('Auth', '인증 (OTP + JWT)')
+      .addTag('Users', '사용자 관리')
+      .addTag('Cases', 'Case 등록 및 상태 관리')
+      .addTag('Events', '이벤트 원장 (EventLedger)')
+      .addTag('Files', '파일 업로드 (MinIO)')
+      .addTag('Gradings', '듀얼 그레이딩')
+      .addTag('Lots', 'DerivedLot + Listing 마켓플레이스')
+      .addTag('Settlements', '정산 조회')
+      .addTag('Admin', '관리자 도구')
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

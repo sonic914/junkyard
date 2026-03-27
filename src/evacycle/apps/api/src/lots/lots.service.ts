@@ -16,6 +16,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { SettlementHookService } from '../settlements/settlement-hook.service';
 import { CreateLotDto } from './dto/create-lot.dto';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { QueryLotsDto } from './dto/query-lots.dto';
@@ -30,6 +31,7 @@ export class LotsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
+    private readonly settlementHookService: SettlementHookService,
   ) {}
 
   // ── Lot 생성 ──
@@ -97,6 +99,18 @@ export class LotsService {
           description: dto.description,
         },
       });
+
+      // 6. CP4: Δ1 Settlement 자동생성 (그레이딩 기반 가산금)
+      await this.settlementHookService.createDelta1(
+        {
+          id: lot.id,
+          partType: lot.partType,
+          reuseGrade: grading.reuseGrade,
+        },
+        caseId,
+        actorId,
+        tx,
+      );
 
       return lot;
     });
@@ -234,6 +248,15 @@ export class LotsService {
           currency: lot.listing.currency,
           buyerId,
         },
+        tx,
+      );
+
+      // 6. CP4: M0 + Δ2 Settlement 자동생성
+      await this.settlementHookService.onPurchaseCompleted(
+        { id: lot.id, partType: lot.partType, caseId: lot.caseId },
+        { price: lot.listing.price },
+        lot.caseId,
+        lot.case.createdBy,
         tx,
       );
 

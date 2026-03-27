@@ -132,18 +132,20 @@ export class CasesService {
         );
       }
 
-      let updated;
-      try {
-        updated = await tx.vehicleCase.update({
-          where: { id: caseId, status: vehicleCase.status },
-          data: { status: rule.toStatus },
-        });
-      } catch (error: any) {
-        // P2025: Record not found — status already changed by concurrent request
-        if (error?.code === 'P2025') {
-          throw new ConflictException('상태가 이미 변경되었습니다');
+      let updated = vehicleCase;
+      // toStatus가 null이면 상태 변경 없음 (이벤트 기록만)
+      if (rule.toStatus !== null) {
+        try {
+          updated = await tx.vehicleCase.update({
+            where: { id: caseId, status: vehicleCase.status },
+            data: { status: rule.toStatus },
+          });
+        } catch (error: any) {
+          if (error?.code === 'P2025') {
+            throw new ConflictException('상태가 이미 변경되었습니다');
+          }
+          throw error;
         }
-        throw error;
       }
 
       const event = await this.ledgerService.appendEvent(
@@ -153,7 +155,7 @@ export class CasesService {
         {
           ...payload,
           statusFrom: vehicleCase.status,
-          statusTo: rule.toStatus,
+          statusTo: rule.toStatus ?? vehicleCase.status,
         },
         tx,
       );
@@ -163,7 +165,54 @@ export class CasesService {
   }
 
   async submitCase(caseId: string, actorId: string, actorRole: UserRole) {
-    return this.transitionCase(caseId, EventType.CASE_SUBMITTED, actorId, actorRole);
+    const rule = CASE_TRANSITIONS[EventType.CASE_SUBMITTED];
+    if (!rule.allowedRoles.includes(actorRole)) {
+      throw new ForbiddenException(`Role ${actorRole} cannot perform CASE_SUBMITTED`);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const vehicleCase = await tx.vehicleCase.findUnique({
+        where: { id: caseId },
+      });
+
+      if (!vehicleCase) {
+        throw new NotFoundException('Case not found');
+      }
+
+      if (!rule.fromStatus.includes(vehicleCase.status as CaseStatus)) {
+        throw new ConflictException(
+          `Cannot CASE_SUBMITTED from status ${vehicleCase.status}`,
+        );
+      }
+
+      let updated;
+      try {
+        updated = await tx.vehicleCase.update({
+          where: { id: caseId, status: vehicleCase.status },
+          data: { status: rule.toStatus! },
+        });
+      } catch (error: any) {
+        if (error?.code === 'P2025') {
+          throw new ConflictException('상태가 이미 변경되었습니다');
+        }
+        throw error;
+      }
+
+      const event = await this.ledgerService.appendEvent(
+        caseId,
+        actorId,
+        EventType.CASE_SUBMITTED,
+        {
+          statusFrom: vehicleCase.status,
+          statusTo: rule.toStatus,
+        },
+        tx,
+      );
+
+      // CP4: M0는 PURCHASE_COMPLETED 시점에 생성 (Conservative 방식)
+
+      return { ...updated, event };
+    });
   }
 
   async cancelCase(caseId: string, actorId: string, actorRole: UserRole, reason: string) {
