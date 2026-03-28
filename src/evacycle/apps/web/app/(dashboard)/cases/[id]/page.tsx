@@ -51,7 +51,7 @@ function CaseActions({
   });
 
   const cancelMut = useMutation({
-    mutationFn: () => cancelCase(caseId),
+    mutationFn: (reason: string) => cancelCase(caseId, reason),
     onSuccess: () => { toast({ title: '케이스 취소 완료' }); invalidate(); },
     onError: () => toast({ variant: 'destructive', title: '취소 실패' }),
   });
@@ -74,8 +74,12 @@ function CaseActions({
           <Button
             variant="destructive"
             onClick={() => {
-              if (!confirm('케이스를 취소하시겠습니까?')) return;
-              cancelMut.mutate();
+              const reason = prompt('취소 사유를 입력하세요 (10자 이상)');
+              if (!reason || reason.length < 10) {
+                alert('취소 사유는 10자 이상 입력해야 합니다.');
+                return;
+              }
+              cancelMut.mutate(reason);
             }}
             disabled={cancelMut.isPending}
           >
@@ -97,14 +101,17 @@ function CaseActions({
           <Button
             variant="destructive"
             onClick={() => {
-              if (!confirm('제출된 케이스를 취소하시겠습니까?')) return;
-              cancelMut.mutate();
+              const reason = prompt('취소 사유를 입력하세요 (10자 이상)');
+              if (!reason || reason.length < 10) {
+                alert('취소 사유는 10자 이상 입력해야 합니다.');
+                return;
+              }
+              cancelMut.mutate(reason);
             }}
             disabled={cancelMut.isPending}
           >
             <XCircle className="mr-2 h-4 w-4" />
             취소
-          </Button>
         </>
       )}
     </div>

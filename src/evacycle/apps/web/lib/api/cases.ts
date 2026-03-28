@@ -48,8 +48,8 @@ export async function submitCase(id: string): Promise<CaseItem> {
   return data;
 }
 
-export async function cancelCase(id: string): Promise<CaseItem> {
-  const { data } = await apiClient.post<CaseItem>(`/cases/${id}/cancel`);
+export async function cancelCase(id: string, reason: string): Promise<CaseItem> {
+  const { data } = await apiClient.post<CaseItem>(`/cases/${id}/cancel`, { reason });
   return data;
 }
 
