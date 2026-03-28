@@ -27,8 +27,10 @@ export interface TimelineResponse {
 export async function getCases(
   params?: PaginationParams & { status?: string },
 ): Promise<CaseListResponse> {
-  const { data } = await apiClient.get<CaseListResponse>('/cases', { params });
-  return data;
+  // 백엔드: { data: CaseItem[], total, skip, take } → 프론트 타입으로 정규화
+  const { data } = await apiClient.get<any>('/cases', { params });
+  if (Array.isArray(data?.items)) return data as CaseListResponse;
+  return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
 
 export async function getCase(id: string): Promise<CaseItem> {

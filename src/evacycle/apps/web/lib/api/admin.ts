@@ -26,11 +26,10 @@ export async function getDashboard(): Promise<DashboardStats> {
 export async function getAdminSettlements(
   params?: PaginationParams & { caseId?: string },
 ): Promise<SettlementListResponse> {
-  const { data } =
-    await apiClient.get<SettlementListResponse>('/admin/settlements', {
-      params,
-    });
-  return data;
+  // 백엔드: { data: Settlement[], meta: { total, ... } } → 정규화
+  const { data } = await apiClient.get<any>('/admin/settlements', { params });
+  if (Array.isArray(data?.items)) return data as SettlementListResponse;
+  return { items: data?.data ?? data?.items ?? [], total: data?.meta?.total ?? data?.total ?? 0 };
 }
 
 export async function approveSettlement(id: string): Promise<Settlement> {
@@ -70,8 +69,10 @@ export async function batchApproveSettlements(
 // ─── Organizations ────────────────────────────────────────────────────────────
 
 export async function getOrganizations(): Promise<Organization[]> {
-  const { data } = await apiClient.get<Organization[]>('/admin/organizations');
-  return data;
+  // 백엔드: { data: Organization[], total, skip, take } → 배열만 반환
+  const { data } = await apiClient.get<any>('/admin/organizations');
+  if (Array.isArray(data)) return data as Organization[];
+  return (data?.data ?? data?.items ?? []) as Organization[];
 }
 
 export async function createOrganization(body: {
