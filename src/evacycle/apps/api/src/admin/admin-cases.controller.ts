@@ -15,12 +15,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class UpdateCaseDto {
-  @IsString()
   @IsOptional()
+  @IsString()
   hubOrgId?: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   notes?: string;
 }
 

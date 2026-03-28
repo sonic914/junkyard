@@ -31,7 +31,10 @@ export default function IntakePage() {
   });
 
   const intakeMut = useMutation({
-    mutationFn: () => intakeConfirm(caseId, currentUser?.id ?? ''),
+    mutationFn: () => {
+      if (!currentUser?.id) throw new Error('로그인이 필요합니다');
+      return intakeConfirm(caseId, currentUser.id);
+    },
     onSuccess: () => {
       toast({
         title: '입고 확인 완료',

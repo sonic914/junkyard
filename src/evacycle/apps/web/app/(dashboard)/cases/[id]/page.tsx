@@ -43,11 +43,13 @@ function CaseActions({
   });
 
   const cocMut = useMutation({
-    mutationFn: () =>
-      transitionCase(caseId, 'COC_SIGNED', {
-        signedBy: currentUser?.id ?? '',
+    mutationFn: () => {
+      if (!currentUser?.id) throw new Error('로그인이 필요합니다');
+      return transitionCase(caseId, 'COC_SIGNED', {
+        signedBy: currentUser.id,
         signedAt: new Date().toISOString(),
-      }),
+      });
+    },
     onSuccess: () => { toast({ title: 'CoC 서명 완료' }); invalidate(); },
     onError: () => toast({ variant: 'destructive', title: 'CoC 서명 실패' }),
   });
