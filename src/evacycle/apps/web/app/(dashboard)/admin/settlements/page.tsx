@@ -111,9 +111,9 @@ export default function AdminSettlementsPage() {
 
   function toggleAll() {
     const pendingIds =
-      data?.items
+      (data?.items ?? [])
         .filter((s) => s.status === 'PENDING')
-        .map((s) => s.id) ?? [];
+        .map((s) => s.id);
     if (pendingIds.every((id) => selected.has(id))) {
       setSelected(new Set());
     } else {
@@ -121,10 +121,10 @@ export default function AdminSettlementsPage() {
     }
   }
 
-  const pendingCount = data?.items.filter((s) => s.status === 'PENDING').length ?? 0;
+  const pendingCount = (data?.items ?? []).filter((s) => s.status === 'PENDING').length ?? 0;
   const isAllSelected =
     pendingCount > 0 &&
-    (data?.items.filter((s) => s.status === 'PENDING') ?? []).every((s) =>
+    ((data?.items ?? []).filter((s) => s.status === 'PENDING') ?? []).every((s) =>
       selected.has(s.id),
     );
 
@@ -198,7 +198,7 @@ export default function AdminSettlementsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.items.length === 0 && (
+                  {(data?.items ?? []).length === 0 && (
                     <TableRow>
                       <TableCell
                         colSpan={8}
@@ -208,7 +208,7 @@ export default function AdminSettlementsPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {data?.items.map((s) => (
+                  {(data?.items ?? []).map((s) => (
                     <TableRow key={s.id}>
                       <TableCell>
                         {s.status === 'PENDING' && (

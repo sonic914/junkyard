@@ -158,7 +158,7 @@ export default function AdminLedgerPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.items.length === 0 && (
+                  {(data?.items ?? []).length === 0 && (
                     <TableRow>
                       <TableCell
                         colSpan={5}
@@ -168,7 +168,7 @@ export default function AdminLedgerPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {data?.items.map((entry) => (
+                  {(data?.items ?? []).map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
