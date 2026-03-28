@@ -126,6 +126,20 @@ export class AuthService {
     await this.redis.del(`refresh:${jti}`);
   }
 
+  /** refreshToken 문자열로 Redis 무효화 (쿠키 기반 로그아웃용) */
+  async logoutByRefreshToken(refreshToken: string): Promise<void> {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('jwt.refreshSecret'),
+      });
+      if (payload?.jti) {
+        await this.redis.del(`refresh:${payload.jti}`);
+      }
+    } catch {
+      // 이미 만료된 토큰 — 무시
+    }
+  }
+
   // ──────────────────────────────────────────────
   // 내 정보 조회
   // ──────────────────────────────────────────────

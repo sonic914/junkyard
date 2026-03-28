@@ -111,8 +111,8 @@ export default function LoginPage() {
   async function handleOtpVerify(otp: string) {
     setIsLoading(true);
     try {
-      const { accessToken, refreshToken, user } = await verifyOtp(email, otp);
-      setTokens(accessToken, refreshToken);
+      const { accessToken, user } = await verifyOtp(email, otp);
+      setTokens(accessToken, ''); // refreshToken은 httpOnly 쿠키로 발급됨
       setUser(user);
       toast({
         title: '로그인 성공',

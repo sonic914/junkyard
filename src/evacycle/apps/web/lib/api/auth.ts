@@ -17,7 +17,7 @@ export interface VerifyOtpRequest {
 
 export interface VerifyOtpResponse {
   accessToken: string;
-  refreshToken: string;
+  // refreshToken은 httpOnly 쿠키로 발급 — 응답 바디에 없음
   user: AuthUser;
 }
 
@@ -41,17 +41,13 @@ export async function verifyOtp(
   return data;
 }
 
-/** 토큰 갱신 */
-export async function refreshTokenApi(
-  refreshToken: string,
-): Promise<{ accessToken: string; refreshToken: string }> {
-  const { data } = await apiClient.post('/auth/token/refresh', {
-    refreshToken,
-  });
+/** 토큰 갱신 (refreshToken은 httpOnly 쿠키로 자동 전송) */
+export async function refreshTokenApi(): Promise<{ accessToken: string }> {
+  const { data } = await apiClient.post('/auth/token/refresh', {});
   return data;
 }
 
-/** 로그아웃 */
+/** 로그아웃 (쿠키 삭제 + Redis 무효화) */
 export async function logoutApi(): Promise<void> {
   await apiClient.post('/auth/logout');
 }

@@ -13,6 +13,7 @@ export const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
+  withCredentials: true, // httpOnly refreshToken 쿠키 자동 전송
 });
 
 // ─── Request 인터셉터: 메모리 토큰 자동 주입 ─────────────────────────────────
@@ -59,11 +60,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const { refreshToken, setTokens, logout } = useAuthStore.getState();
-    if (!refreshToken) {
-      logout();
-      return Promise.reject(error);
-    }
+    const { setTokens, logout } = useAuthStore.getState();
+    // refreshToken은 httpOnly 쿠키에 있으므로 별도 확인 불필요
 
     // 동시 다발 401 — 큐잉 처리
     if (isRefreshing) {
@@ -79,11 +77,12 @@ apiClient.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await axios.post(`${BASE_URL}${REFRESH_URL}`, {
-        refreshToken,
+      // refreshToken은 httpOnly 쿠키로 자동 전송 — body 불필요
+      const { data } = await axios.post(`${BASE_URL}${REFRESH_URL}`, {}, {
+        withCredentials: true,
       });
-      const { accessToken, refreshToken: newRefreshToken } = data;
-      setTokens(accessToken, newRefreshToken);
+      const { accessToken } = data;
+      setTokens(accessToken, '');
       processPendingQueue(null, accessToken);
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return apiClient(originalRequest);

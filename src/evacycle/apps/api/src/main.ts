@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -12,6 +13,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
   const env = configService.get<string>('app.env', 'development');
+
+  // 쿠키 파서 (httpOnly refreshToken 쿠키 읽기 위해 필요)
+  app.use(cookieParser());
 
   // API 버전 관리
   app.enableVersioning({
