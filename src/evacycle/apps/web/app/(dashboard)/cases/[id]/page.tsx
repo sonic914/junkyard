@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCase, submitCase, cancelCase, transitionCase } from '@/lib/api/cases';
+import { useAuthStore } from '@/lib/store/auth';
 import { StatusStepper } from '@/components/cases/status-stepper';
 import { CaseStatusBadge } from '@/components/common/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +33,7 @@ function CaseActions({
   status: CaseStatus;
 }) {
   const qc = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
   const invalidate = () => qc.invalidateQueries({ queryKey: ['case', caseId] });
 
   const submitMut = useMutation({
@@ -43,7 +45,7 @@ function CaseActions({
   const cocMut = useMutation({
     mutationFn: () =>
       transitionCase(caseId, 'COC_SIGNED', {
-        signedBy: 'JUNKYARD',
+        signedBy: currentUser?.id ?? '',
         signedAt: new Date().toISOString(),
       }),
     onSuccess: () => { toast({ title: 'CoC 서명 완료' }); invalidate(); },

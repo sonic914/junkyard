@@ -127,8 +127,8 @@ export default function GradingPage() {
       // 1) 그레이딩 기록 생성
       const grading = await gradeCase(caseId, values);
 
-      // 2) DISCARD가 아닐 때만 Lot 생성
-      if (grading.routingDecision !== 'DISCARD') {
+      // 2) REUSE인 경우만 Lot 생성 (RECYCLE은 외부 처리, DISCARD는 생성 안 함)
+      if (grading.routingDecision === 'REUSE') {
         await createLot(caseId, {
           partType: values.partType,
           weightKg: values.weightKg,
