@@ -188,6 +188,7 @@ test('6. 허브 그레이딩 + Lot 생성', async ({ page }) => {
   );
 
   // Lot ID 추출 (API 조회)
+  // findByCaseId 응답: { caseId, caseNo, lots: [...] }
   const token = await getAccessToken('hub@evacycle.com');
   const lotsRes = await fetch(`${API}/cases/${state.caseId}/lots`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -196,10 +197,10 @@ test('6. 허브 그레이딩 + Lot 생성', async ({ page }) => {
     const lotsData = await lotsRes.json();
     const lots = Array.isArray(lotsData)
       ? lotsData
-      : (lotsData.data ?? lotsData.items ?? []);
+      : (lotsData.lots ?? lotsData.data ?? lotsData.items ?? []);
     state.lotId = lots[0]?.id ?? '';
   }
-  console.log(`✅ Lot ID: ${state.lotId || '(조회 실패)'}`);
+  console.log(`✅ Lot ID: ${state.lotId || '(조회 실패 — caseId 또는 Lot 생성 확인 필요)'}`);
 });
 
 // ─── 7. 허브 — Listing 등록 ──────────────────────────────────────────────────
@@ -214,7 +215,7 @@ test('7. Lot Listing 등록', async ({ page }) => {
       const lotsData = await lotsRes.json();
       const lots = Array.isArray(lotsData)
         ? lotsData
-        : (lotsData.data ?? lotsData.items ?? []);
+        : (lotsData.lots ?? lotsData.data ?? lotsData.items ?? []);
       state.lotId = lots[0]?.id ?? '';
     }
   }
@@ -249,16 +250,22 @@ test('8. 바이어 마켓플레이스 구매', async ({ page }) => {
   let targetLotId = state.lotId;
 
   if (!targetLotId) {
+    // API로 listing.status=OPEN인 ON_SALE Lot 조회
+    // GET /lots?status=ON_SALE → PaginatedResponse<DerivedLot> { data: [...] }
     const token = await getAccessToken('buyer@evacycle.com');
-    const lotsRes = await fetch(`${API}/lots?status=ON_SALE&limit=1`, {
+    const lotsRes = await fetch(`${API}/lots?status=ON_SALE&limit=20`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (lotsRes.ok) {
       const lotsData = await lotsRes.json();
-      const lots = Array.isArray(lotsData)
+      const lots: any[] = Array.isArray(lotsData)
         ? lotsData
-        : (lotsData.data ?? lotsData.items ?? []);
-      targetLotId = lots[0]?.id ?? '';
+        : (lotsData.lots ?? lotsData.data ?? lotsData.items ?? []);
+      // listing.status === 'OPEN' 인 Lot만 선택 (isSoldOut 조건 회피)
+      const openLot = lots.find(
+        (l) => l.listing?.status === 'OPEN' || l.listing?.status == null,
+      );
+      targetLotId = openLot?.id ?? lots[0]?.id ?? '';
     }
   }
 
