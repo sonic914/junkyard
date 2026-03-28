@@ -46,18 +46,19 @@ import type { LotStatus } from '@/lib/api/lots';
 
 // ─── 상태 뱃지 ────────────────────────────────────────────────────────────────
 const LOT_STATUS_MAP: Record<
-  LotStatus,
+  string,
   { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
 > = {
-  AVAILABLE: { label: '판매가능', variant: 'default' },
-  LISTED:    { label: '등록됨',  variant: 'secondary' },
+  PENDING:   { label: '대기중',  variant: 'secondary' },
+  ON_SALE:   { label: '판매중',  variant: 'default' },
   SOLD:      { label: '판매완료', variant: 'outline' },
-  DISCARDED: { label: '폐기됨',  variant: 'destructive' },
+  SETTLED:   { label: '정산완료', variant: 'outline' },
 };
 
-function LotStatusBadge({ status }: { status: LotStatus }) {
-  const { label, variant } = LOT_STATUS_MAP[status];
-  return <Badge variant={variant}>{label}</Badge>;
+function LotStatusBadge({ status }: { status: string }) {
+  const entry = LOT_STATUS_MAP[status];
+  if (!entry) return <Badge variant="secondary">{status}</Badge>;
+  return <Badge variant={entry.variant}>{entry.label}</Badge>;
 }
 
 // ─── 그레이딩 등급 색상 ───────────────────────────────────────────────────────
@@ -296,7 +297,7 @@ export default function LotDetailPage() {
               </CardDescription>
             )}
           </div>
-          {lot.status === 'AVAILABLE' && !lot.listing && (
+          {lot.status === 'PENDING' && !lot.listing && (
             <Button size="sm" onClick={() => setListingOpen(true)}>
               <ShoppingBag className="mr-2 h-4 w-4" />
               Listing 생성
@@ -335,7 +336,7 @@ export default function LotDetailPage() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {lot.status === 'AVAILABLE'
+              {lot.status === 'PENDING'
                 ? '"Listing 생성" 버튼으로 마켓플레이스에 등록하세요'
                 : `현재 상태(${lot.status})에서는 Listing을 생성할 수 없습니다`}
             </p>

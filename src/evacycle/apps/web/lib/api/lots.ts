@@ -5,7 +5,7 @@ import apiClient from './client';
 export type ReuseGrade = 'A' | 'B' | 'C' | 'D';
 export type RecycleGrade = 'R1' | 'R2' | 'R3';
 export type RoutingDecision = 'REUSE' | 'RECYCLE' | 'DISCARD';
-export type LotStatus = 'AVAILABLE' | 'LISTED' | 'SOLD' | 'DISCARDED';
+export type LotStatus = 'PENDING' | 'ON_SALE' | 'SOLD' | 'SETTLED';
 
 export interface GradingResult {
   id: string;
