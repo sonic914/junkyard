@@ -43,7 +43,7 @@ export default function IntakePage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-lg space-y-4" data-theme="b">
+      <div className="mx-auto max-w-lg space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -76,7 +76,7 @@ export default function IntakePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-lg space-y-5" data-theme="b">
+    <div className="mx-auto max-w-lg space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Button

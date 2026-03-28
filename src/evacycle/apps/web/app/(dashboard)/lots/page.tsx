@@ -55,7 +55,7 @@ export default function LotsPage() {
   });
 
   return (
-    <div className="space-y-5" data-theme="b">
+    <div className="space-y-5">
       <h2 className="text-2xl font-bold tracking-tight">입고 관리</h2>
 
       <Card>

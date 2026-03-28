@@ -174,7 +174,7 @@ export default function LotDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-xl space-y-4" data-theme="b">
+      <div className="mx-auto max-w-xl space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
         <Skeleton className="h-40 w-full" />
@@ -197,7 +197,7 @@ export default function LotDetailPage() {
     ROUTING_COLORS[lot.routingDecision ?? ''] ?? 'text-muted-foreground';
 
   return (
-    <div className="mx-auto max-w-xl space-y-5" data-theme="b">
+    <div className="mx-auto max-w-xl space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Button

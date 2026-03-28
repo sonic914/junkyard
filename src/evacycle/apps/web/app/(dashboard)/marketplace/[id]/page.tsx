@@ -147,7 +147,7 @@ export default function MarketplaceLotPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-xl space-y-4" data-theme="a">
+      <div className="mx-auto max-w-xl space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -170,7 +170,7 @@ export default function MarketplaceLotPage() {
   const isSoldOut = lot.listing?.status !== 'OPEN';
 
   return (
-    <div className="mx-auto max-w-xl space-y-5" data-theme="a">
+    <div className="mx-auto max-w-xl space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Button

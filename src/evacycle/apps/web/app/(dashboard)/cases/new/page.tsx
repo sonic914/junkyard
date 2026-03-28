@@ -456,7 +456,7 @@ export default function NewCasePage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6" data-theme="a">
+    <div className="mx-auto max-w-xl space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">새 케이스 등록</h2>
 
       <StepIndicator current={step} />

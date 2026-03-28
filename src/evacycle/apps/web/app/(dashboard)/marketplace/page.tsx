@@ -46,7 +46,7 @@ export default function MarketplacePage() {
   });
 
   return (
-    <div className="space-y-5" data-theme="a">
+    <div className="space-y-5">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

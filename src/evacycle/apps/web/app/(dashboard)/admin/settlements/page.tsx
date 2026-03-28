@@ -129,7 +129,7 @@ export default function AdminSettlementsPage() {
     );
 
   return (
-    <div className="space-y-4" data-theme="b">
+    <div className="space-y-4">
       <h2 className="text-2xl font-bold tracking-tight">정산 관리</h2>
 
       <Card>

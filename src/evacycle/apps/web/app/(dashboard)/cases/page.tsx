@@ -45,7 +45,7 @@ export default function CasesPage() {
   }
 
   return (
-    <div className="space-y-5" data-theme="a">
+    <div className="space-y-5">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">케이스 관리</h2>

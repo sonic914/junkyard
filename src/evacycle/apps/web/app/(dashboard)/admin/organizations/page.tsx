@@ -238,7 +238,7 @@ export default function AdminOrganizationsPage() {
   }
 
   return (
-    <div className="space-y-4" data-theme="b">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">조직 관리</h2>
         <Button onClick={openCreate}>

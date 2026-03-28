@@ -36,7 +36,7 @@ export default function CaseTimelinePage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4" data-theme="a">
+      <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-20 w-full" />
@@ -57,7 +57,7 @@ export default function CaseTimelinePage() {
   const invalidCount = data.timeline.filter((e) => e.hashValid === false).length;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5" data-theme="a">
+    <div className="mx-auto max-w-2xl space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Button

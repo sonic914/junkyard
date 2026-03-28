@@ -124,7 +124,7 @@ export default function CaseDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4" data-theme="a">
+      <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -168,7 +168,7 @@ export default function CaseDetailPage() {
   ];
 
   return (
-    <div className="space-y-5" data-theme="a">
+    <div className="space-y-5">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => router.push('/cases')}>

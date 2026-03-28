@@ -60,7 +60,7 @@ export default function AdminLedgerPage() {
   const verifyResult = verifyMut.data;
 
   return (
-    <div className="space-y-6" data-theme="b">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">이벤트 원장</h2>
         <Button

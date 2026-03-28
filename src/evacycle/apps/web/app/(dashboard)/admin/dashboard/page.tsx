@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
   }).format(data.monthlySettlementAmount);
 
   return (
-    <div className="space-y-6" data-theme="b">
+    <div className="space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">대시보드</h2>
 
       {/* KPI 카드 4종 */}
