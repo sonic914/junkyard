@@ -4,11 +4,14 @@ const API = process.env.API_URL ?? 'http://localhost:3000/v1';
 
 /**
  * UI 기반 OTP 로그인 헬퍼
- * 1. fetch로 OTP 발송 → dev 모드 응답에서 otp 추출
- * 2. 로그인 페이지를 통해 브라우저 세션 수립
+ *
+ * 로그인 페이지 동작:
+ *   - 이메일 입력 → "OTP 받기" 버튼 클릭
+ *   - OTP 6칸 개별 input[maxlength="1"] 에 한 자리씩 입력
+ *   - 6자리 완성 시 자동 제출 (submit 버튼 없음)
  */
 export async function loginAs(page: Page, email: string): Promise<void> {
-  // 1. OTP 발송
+  // 1. API로 OTP 발송 + 코드 추출 (dev 모드)
   const sendRes = await fetch(`${API}/auth/otp/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -25,35 +28,30 @@ export async function loginAs(page: Page, email: string): Promise<void> {
 
   // 2. 로그인 페이지 이동
   await page.goto('/login');
-  await page.waitForSelector('input[type="email"], input[placeholder*="이메일"]', { timeout: 8000 });
 
-  // 3. 이메일 입력 + OTP 발송 버튼
-  const emailInput = page.locator('input[type="email"]').or(
-    page.locator('input[placeholder*="이메일"]')
-  ).first();
-  await emailInput.fill(email);
-  await page.getByRole('button', { name: /OTP 발송|발송|전송/i }).click();
+  // 3. 이메일 입력
+  await page.locator('input[type="email"]').fill(email);
 
-  // 4. OTP 입력 화면 대기 (입력 필드 변경)
-  await page.waitForSelector(
-    'input[placeholder*="OTP"], input[placeholder*="코드"], input[type="text"]',
-    { timeout: 8000 }
-  );
+  // 4. "OTP 받기" 버튼 클릭 (로딩 중엔 "발송 중...")
+  await page.getByRole('button', { name: /OTP 받기/i }).click();
 
-  // 5. OTP 6자리 입력
-  const otpInput = page.locator('input[placeholder*="OTP"]').or(
-    page.locator('input[placeholder*="코드"]')
-  ).or(
-    page.locator('input[inputmode="numeric"]')
-  ).first();
-  await otpInput.fill(otp);
+  // 5. OTP 6칸 digit input 대기
+  await page.waitForSelector('input[maxlength="1"]', { timeout: 8000 });
 
-  // 6. 확인/로그인 버튼
-  await page.getByRole('button', { name: /로그인|확인|인증/i }).click();
+  // 6. 각 칸에 한 자리씩 입력 (6번째 입력 시 자동 제출)
+  const digits = otp.split('');
+  const inputs = page.locator('input[maxlength="1"]');
+  for (let i = 0; i < 6; i++) {
+    await inputs.nth(i).fill(digits[i]);
+    // 마지막 칸이 아닌 경우 다음 칸으로 포커스 이동 대기
+    if (i < 5) {
+      await page.waitForTimeout(50);
+    }
+  }
 
-  // 7. 대시보드 진입 확인
+  // 7. 자동 제출 후 대시보드 진입 확인
   await page.waitForURL(/\/(admin|cases|lots|marketplace|settlements)/, {
-    timeout: 10000,
+    timeout: 12000,
   });
 }
 
@@ -75,7 +73,9 @@ export async function getAccessToken(email: string): Promise<string> {
     body: JSON.stringify({ email, otp: sendData.otp }),
   });
   const verifyData = await verifyRes.json();
-  if (!verifyData.accessToken) throw new Error(`토큰 발급 실패: ${JSON.stringify(verifyData)}`);
+  if (!verifyData.accessToken) {
+    throw new Error(`토큰 발급 실패: ${JSON.stringify(verifyData)}`);
+  }
 
   return verifyData.accessToken;
 }
