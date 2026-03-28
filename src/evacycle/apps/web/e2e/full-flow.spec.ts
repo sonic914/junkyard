@@ -52,7 +52,7 @@ test('2. 케이스 등록 + 제출', async ({ page }) => {
   await page.getByRole('button', { name: '케이스 제출' }).click();
 
   // 케이스 상세 페이지 이동 + ID 추출
-  await page.waitForURL(/\/cases\/[a-z0-9-]+$/, { timeout: 12000 });
+  await page.waitForURL(/\/cases\/[0-9a-f]{8}-[0-9a-f]{4}-/, { timeout: 15000 });
   state.caseId = page.url().split('/cases/')[1];
   expect(state.caseId).toBeTruthy();
 
