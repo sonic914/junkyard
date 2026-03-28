@@ -167,7 +167,7 @@ export default function MarketplaceLotPage() {
     );
   }
 
-  const isSoldOut = lot.listing?.status !== 'OPEN';
+  const isSoldOut = lot.listing?.status !== 'ACTIVE';
 
   return (
     <div className="mx-auto max-w-xl space-y-5">

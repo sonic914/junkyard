@@ -6,7 +6,7 @@ export interface MarketplaceLot extends Lot {
     id: string;
     lotId: string;
     price: number;
-    status: 'OPEN' | 'SOLD' | 'CANCELLED';
+    status: 'DRAFT' | 'ACTIVE' | 'SOLD' | 'CANCELLED';
     createdAt: string;
   };
 }
@@ -40,7 +40,7 @@ export async function getMarketplaceLots(params?: {
 }): Promise<{ items: MarketplaceLot[]; total: number }> {
   // COD-27: PaginatedResponse<T>
   const { data } = await apiClient.get<any>('/lots', {
-    params: { ...params, status: 'LISTED' },
+    params: { ...params, status: 'ON_SALE' },
   });
   return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
