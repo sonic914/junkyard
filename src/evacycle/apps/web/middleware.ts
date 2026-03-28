@@ -12,9 +12,9 @@ import type { UserRole } from '@/lib/store/auth';
 const ROLE_ALLOWED_PATHS: Record<UserRole, string[]> = {
   ADMIN:           ['/admin', '/lots', '/cases', '/marketplace'],
   HUB:             ['/lots', '/cases'],
-  JUNKYARD:        ['/cases'],
-  INTAKE_JUNKYARD: ['/cases'],
-  OWNER:           ['/cases'],
+  JUNKYARD:        ['/cases', '/settlements'],
+  INTAKE_JUNKYARD: ['/cases', '/settlements'],
+  OWNER:           ['/cases', '/settlements'],
   BUYER:           ['/marketplace'],
 };
 
