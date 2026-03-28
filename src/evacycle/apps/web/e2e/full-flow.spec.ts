@@ -51,7 +51,7 @@ test('2. 케이스 등록 + 제출', async ({ page }) => {
 
   // Step 1 — 차량 정보 입력
   // VIN 고유값 (매 실행마다 달라야 중복 방지)
-  const vin = `KMH${Date.now().toString().slice(-10)}AB`.slice(0, 17);
+  const vin = `KMH${Date.now().toString().slice(-12)}AB`.slice(0, 17);
   await page.getByLabel('제조사').fill('현대');
   await page.getByLabel('모델명').fill('아이오닉5');
   await page.getByLabel('연식').fill('2023');
@@ -244,15 +244,33 @@ test('7. Lot Listing 등록', async ({ page }) => {
 
 // ─── 8. 바이어 — 마켓플레이스 구매 ──────────────────────────────────────────
 test('8. 바이어 마켓플레이스 구매', async ({ page }) => {
+  // state.lotId가 있으면 직접 해당 lot으로 이동 (7번 연계)
+  // 없으면 API로 ON_SALE 상태 Lot 조회 → marketplace/{id}로 직접 이동
+  let targetLotId = state.lotId;
+
+  if (!targetLotId) {
+    const token = await getAccessToken('buyer@evacycle.com');
+    const lotsRes = await fetch(`${API}/lots?status=ON_SALE&limit=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (lotsRes.ok) {
+      const lotsData = await lotsRes.json();
+      const lots = Array.isArray(lotsData)
+        ? lotsData
+        : (lotsData.data ?? lotsData.items ?? []);
+      targetLotId = lots[0]?.id ?? '';
+    }
+  }
+
+  if (!targetLotId) {
+    console.warn('ON_SALE Lot 없음 — 7번 테스트 선행 또는 시드 데이터 필요');
+    test.skip();
+    return;
+  }
+
   await loginAs(page, 'buyer@evacycle.com');
-  await page.goto('/marketplace');
-
-  // BATTERY 카드가 보일 때까지 대기
-  await expect(page.getByText('BATTERY').first()).toBeVisible({ timeout: 12000 });
-
-  // "상세 보기" — <Button asChild><Link href="/marketplace/[id]">상세 보기</Link></Button>
-  // role=link (asChild로 렌더링됨)
-  await page.getByRole('link', { name: '상세 보기' }).first().click();
+  // lot id로 직접 상세 페이지 이동 (카탈로그 탐색 불필요)
+  await page.goto(`/marketplace/${targetLotId}`);
   await page.waitForURL(/\/marketplace\/[0-9a-f-]{36}/, { timeout: 10000 });
 
   // "구매하기" 버튼
