@@ -29,13 +29,22 @@ export async function presignFile(
   return data;
 }
 
-/** Step 2: MinIO PUT 업로드 */
+/** Step 2: MinIO PUT 업로드
+ *  브라우저에서 MinIO(localhost:9000)로 직접 PUT 시 CORS 차단됨.
+ *  Next.js rewrite `/api/minio/*` → `http://localhost:9000/*` 로 프록시 경유.
+ */
 export async function uploadToMinIO(
   uploadUrl: string,
   file: File,
   onProgress?: (pct: number) => void,
 ): Promise<void> {
-  await axios.put(uploadUrl, file, {
+  // localhost:9000 → /api/minio 치환 (브라우저 환경에서만 적용)
+  const proxyUrl =
+    typeof window !== 'undefined'
+      ? uploadUrl.replace(/https?:\/\/localhost:9000/, '/api/minio')
+      : uploadUrl;
+
+  await axios.put(proxyUrl, file, {
     headers: { 'Content-Type': file.type },
     onUploadProgress: (e) => {
       if (onProgress && e.total) {

@@ -7,6 +7,10 @@ const nextConfig = {
         source: '/api/backend/:path*',
         destination: 'http://localhost:3000/v1/:path*',
       },
+      {
+        source: '/api/minio/:path*',
+        destination: 'http://localhost:9000/:path*',
+      },
     ];
   },
 };
