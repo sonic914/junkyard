@@ -67,10 +67,9 @@ export async function getLots(params?: {
   page?: number;
   limit?: number;
 }): Promise<{ items: Lot[]; total: number }> {
-  // 백엔드: { items, total, skip, take }
+  // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/lots', { params });
-  if (Array.isArray(data?.items)) return { items: data.items, total: data.total ?? 0 };
-  return { items: data?.data ?? [], total: data?.total ?? data?.meta?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
 
 export async function getLot(id: string): Promise<Lot> {

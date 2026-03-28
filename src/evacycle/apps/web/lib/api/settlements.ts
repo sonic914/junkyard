@@ -7,10 +7,7 @@ import type { SettlementListResponse, PaginationParams } from '@/types';
 export async function getMySettlements(
   params?: PaginationParams,
 ): Promise<SettlementListResponse> {
+  // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/settlements', { params });
-  if (Array.isArray(data?.items)) return data as SettlementListResponse;
-  return {
-    items: data?.data ?? data?.items ?? [],
-    total: data?.meta?.total ?? data?.total ?? 0,
-  };
+  return { items: data?.data ?? [], total: data?.total ?? 0 };
 }

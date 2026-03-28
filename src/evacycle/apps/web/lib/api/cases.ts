@@ -27,9 +27,8 @@ export interface TimelineResponse {
 export async function getCases(
   params?: PaginationParams & { status?: string },
 ): Promise<CaseListResponse> {
-  // 백엔드: { data: CaseItem[], total, skip, take } → 프론트 타입으로 정규화
+  // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/cases', { params });
-  if (Array.isArray(data?.items)) return data as CaseListResponse;
   return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
 

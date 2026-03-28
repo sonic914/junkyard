@@ -13,6 +13,7 @@ import { CreateCaseDto } from './dto/create-case.dto';
 import { CASE_TRANSITIONS } from './case-state-machine';
 import { EVENT_LABELS } from '../common/constants/event-labels';
 import { computeSelfHash } from '../ledger/hash.util';
+import { paginate } from '../common/dto/paginated-response.dto';
 
 @Injectable()
 export class CasesService {
@@ -311,7 +312,7 @@ export class CasesService {
       }),
       this.prisma.vehicleCase.count({ where }),
     ]);
-    return { data, total, skip, take };
+    return paginate(data, total, { skip, take });
   }
 
   async findOne(id: string) {

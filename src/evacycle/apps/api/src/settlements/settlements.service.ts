@@ -25,6 +25,7 @@ import { PaySettlementDto } from './dto/pay-settlement.dto';
 import { BatchApproveDto } from './dto/batch-approve.dto';
 import { CreateSettlementRuleDto } from './dto/create-settlement-rule.dto';
 import { QueryAdminSettlementsDto } from '../admin/dto/query-admin-settlements.dto';
+import { paginate, toSkipTake } from '../common/dto/paginated-response.dto';
 
 type PrismaTransactionClient = Omit<
   PrismaClient,
@@ -51,6 +52,8 @@ export class SettlementsService {
       where.yardUserId = userId;
     }
 
+    const { skip, take } = toSkipTake(query);
+
     const [items, total] = await Promise.all([
       this.prisma.newSettlement.findMany({
         where,
@@ -65,18 +68,15 @@ export class SettlementsService {
             },
           },
         },
-        skip: query.skip ?? 0,
-        take: query.take ?? 20,
+        skip,
+        take,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.newSettlement.count({ where }),
     ]);
 
-    const page = Math.floor((query.skip ?? 0) / (query.take ?? 20)) + 1;
-    const limit = query.take ?? 20;
-
-    return {
-      data: items.map((s) => ({
+    return paginate(
+      items.map((s) => ({
         id: s.id,
         caseId: s.caseId,
         caseNo: s.case.caseNo,
@@ -100,13 +100,9 @@ export class SettlementsService {
         paidAt: s.paidAt,
         createdAt: s.createdAt,
       })),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+      total,
+      query,
+    );
   }
 
   async findOne(id: string, userId: string, userRole: UserRole) {
@@ -256,6 +252,8 @@ export class SettlementsService {
       ...(query.yardUserId && { yardUserId: query.yardUserId }),
     };
 
+    const { skip, take } = toSkipTake(query);
+
     const [items, total] = await Promise.all([
       this.prisma.newSettlement.findMany({
         where,
@@ -271,18 +269,15 @@ export class SettlementsService {
             },
           },
         },
-        skip: query.skip ?? 0,
-        take: query.take ?? 20,
+        skip,
+        take,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.newSettlement.count({ where }),
     ]);
 
-    const page = Math.floor((query.skip ?? 0) / (query.take ?? 20)) + 1;
-    const limit = query.take ?? 20;
-
-    return {
-      data: items.map((s) => ({
+    return paginate(
+      items.map((s) => ({
         id: s.id,
         caseId: s.caseId,
         caseNo: s.case.caseNo,
@@ -305,13 +300,9 @@ export class SettlementsService {
         paidAt: s.paidAt,
         createdAt: s.createdAt,
       })),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+      total,
+      query,
+    );
   }
 
   // ── 정산 승인 (PENDING → APPROVED) ──

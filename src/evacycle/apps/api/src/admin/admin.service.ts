@@ -11,6 +11,7 @@ import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { QueryLedgerDto } from './dto/query-ledger.dto';
 import { OrgType, PartType, UserRole, Prisma, EventType } from '@prisma/client';
 import { computeSelfHash } from '../ledger/hash.util';
+import { paginate } from '../common/dto/paginated-response.dto';
 
 @Injectable()
 export class AdminService {
@@ -39,7 +40,7 @@ export class AdminService {
       }),
       this.prisma.organization.count({ where }),
     ]);
-    return { data, total, skip, take };
+    return paginate(data, total, { skip, take });
   }
 
   async findOneOrganization(id: string) {
@@ -254,8 +255,8 @@ export class AdminService {
       ]),
     );
 
-    return {
-      items: items.map((u) => ({
+    return paginate(
+      items.map((u) => ({
         id: u.id,
         email: u.email,
         name: u.name,
@@ -270,9 +271,8 @@ export class AdminService {
         },
       })),
       total,
-      skip,
-      take,
-    };
+      { skip, take },
+    );
   }
 
   async updateUser(id: string, dto: AdminUpdateUserDto) {

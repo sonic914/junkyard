@@ -38,10 +38,11 @@ export async function getMarketplaceLots(params?: {
   page?: number;
   limit?: number;
 }): Promise<{ items: MarketplaceLot[]; total: number }> {
-  const { data } = await apiClient.get('/lots', {
+  // COD-27: PaginatedResponse<T>
+  const { data } = await apiClient.get<any>('/lots', {
     params: { ...params, status: 'LISTED' },
   });
-  return data;
+  return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
 
 export async function getMarketplaceLot(id: string): Promise<MarketplaceLot> {

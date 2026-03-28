@@ -27,4 +27,17 @@ export class QuerySettlementsDto {
   @IsOptional()
   @Type(() => Number)
   take?: number = 20;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
 }

@@ -20,6 +20,7 @@ import { SettlementHookService } from '../settlements/settlement-hook.service';
 import { CreateLotDto } from './dto/create-lot.dto';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { QueryLotsDto } from './dto/query-lots.dto';
+import { paginate, toSkipTake } from '../common/dto/paginated-response.dto';
 
 type PrismaTransactionClient = Omit<
   PrismaClient,
@@ -339,6 +340,8 @@ export class LotsService {
         : {}),
     };
 
+    const { skip, take } = toSkipTake(query);
+
     const [items, total] = await Promise.all([
       this.prisma.derivedLot.findMany({
         where,
@@ -355,14 +358,14 @@ export class LotsService {
             select: { id: true, price: true, currency: true, status: true },
           },
         },
-        skip: query.skip ?? 0,
-        take: query.take ?? 20,
+        skip,
+        take,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.derivedLot.count({ where }),
     ]);
 
-    return { items, total, skip: query.skip ?? 0, take: query.take ?? 20 };
+    return paginate(items, total, query);
   }
 
     // ── 구매 내역 조회 (바이어) ──

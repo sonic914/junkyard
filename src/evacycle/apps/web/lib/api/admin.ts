@@ -26,10 +26,9 @@ export async function getDashboard(): Promise<DashboardStats> {
 export async function getAdminSettlements(
   params?: PaginationParams & { caseId?: string },
 ): Promise<SettlementListResponse> {
-  // 백엔드: { data: Settlement[], meta: { total, ... } } → 정규화
+  // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/admin/settlements', { params });
-  if (Array.isArray(data?.items)) return data as SettlementListResponse;
-  return { items: data?.data ?? data?.items ?? [], total: data?.meta?.total ?? data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
 
 export async function approveSettlement(id: string): Promise<Settlement> {
@@ -79,10 +78,10 @@ export async function updateAdminCase(
 // ─── Organizations ────────────────────────────────────────────────────────────
 
 export async function getOrganizations(): Promise<Organization[]> {
-  // 백엔드: { data: Organization[], total, skip, take } → 배열만 반환
+  // COD-27: PaginatedResponse → data 배열만 반환
   const { data } = await apiClient.get<any>('/admin/organizations');
   if (Array.isArray(data)) return data as Organization[];
-  return (data?.data ?? data?.items ?? []) as Organization[];
+  return (data?.data ?? []) as Organization[];
 }
 
 export async function createOrganization(body: {
@@ -117,8 +116,9 @@ export async function deleteOrganization(id: string): Promise<void> {
 export async function getAdminUsers(
   params?: PaginationParams,
 ): Promise<{ items: User[]; total: number }> {
-  const { data } = await apiClient.get('/admin/users', { params });
-  return data;
+  // COD-27: PaginatedResponse<T> → data 배열
+  const { data } = await apiClient.get<any>('/admin/users', { params });
+  return { items: data?.data ?? [], total: data?.total ?? 0 };
 }
 
 export async function updateUserRole(
