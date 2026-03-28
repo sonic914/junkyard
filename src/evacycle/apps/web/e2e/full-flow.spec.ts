@@ -262,10 +262,8 @@ test('8. 바이어 마켓플레이스 구매', async ({ page }) => {
         ? lotsData
         : (lotsData.lots ?? lotsData.data ?? lotsData.items ?? []);
       // listing.status === 'OPEN' 인 Lot만 선택 (isSoldOut 조건 회피)
-      const openLot = lots.find(
-        (l) => l.listing?.status === 'OPEN' || l.listing?.status == null,
-      );
-      targetLotId = openLot?.id ?? lots[0]?.id ?? '';
+      const openLot = lots.find((l) => l.listing?.status === 'OPEN');
+      targetLotId = openLot?.id ?? '';
     }
   }
 
@@ -280,8 +278,10 @@ test('8. 바이어 마켓플레이스 구매', async ({ page }) => {
   await page.goto(`/marketplace/${targetLotId}`);
   await page.waitForURL(/\/marketplace\/[0-9a-f-]{36}/, { timeout: 10000 });
 
-  // "구매하기" 버튼
-  await page.getByRole('button', { name: '구매하기' }).click();
+  // "구매하기" 버튼 — 페이지 데이터 로딩 대기
+  const buyBtn = page.getByRole('button', { name: '구매하기' });
+  await expect(buyBtn).toBeVisible({ timeout: 15000 });
+  await buyBtn.click();
 
   // AlertDialog: 타이틀 "구매 확인", 버튼 "구매 확정"
   await expect(page.getByText('구매 확인')).toBeVisible({ timeout: 5000 });
