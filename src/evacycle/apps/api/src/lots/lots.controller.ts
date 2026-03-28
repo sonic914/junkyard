@@ -73,4 +73,16 @@ export class LotsController {
   async purchase(@Param('id') lotId: string, @Request() req: any) {
     return this.lotsService.purchaseLot(lotId, req.user.sub, req.user.role);
   }
+
+  // ── 구매 내역 (바이어 본인) ──
+
+  @Get('marketplace/orders')
+  @Roles(UserRole.BUYER, UserRole.ADMIN)
+  async getMyOrders(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+    @Request() req: any,
+  ) {
+    return this.lotsService.getMyOrders(req.user.sub, { page: +page, limit: +limit });
+  }
 }

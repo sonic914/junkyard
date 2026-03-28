@@ -54,14 +54,16 @@ export async function uploadToMinIO(
   });
 }
 
-/** Step 3: 업로드 확인 */
+/** Step 3: 업로드 확인
+ *  백엔드: POST /cases/:id/files/:fileId/confirm (fileId는 URL 파라미터)
+ *  body는 사용하지 않음 — 백엔드가 DB/MinIO에서 직접 파일 정보 읽음
+ */
 export async function confirmFile(
   caseId: string,
   body: ConfirmFileBody,
 ): Promise<{ id: string; filename: string }> {
   const { data } = await apiClient.post(
-    `/cases/${caseId}/files/confirm`,
-    body,
+    `/cases/${caseId}/files/${body.fileId}/confirm`,
   );
   return data;
 }

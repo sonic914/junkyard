@@ -58,7 +58,8 @@ export async function transitionCase(
   eventType: string,
   payload?: Record<string, unknown>,
 ): Promise<CaseItem> {
-  const { data } = await apiClient.post<CaseItem>(`/cases/${id}/transition`, {
+  // 백엔드: POST /cases/:id/events/transition
+  const { data } = await apiClient.post<CaseItem>(`/cases/${id}/events/transition`, {
     eventType,
     payload,
   });

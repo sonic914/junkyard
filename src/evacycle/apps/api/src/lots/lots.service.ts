@@ -365,6 +365,51 @@ export class LotsService {
     return { items, total, skip: query.skip ?? 0, take: query.take ?? 20 };
   }
 
+    // ── 구매 내역 조회 (바이어) ──
+
+  async getMyOrders(
+    buyerId: string,
+    pagination: { page: number; limit: number },
+  ) {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+
+    // 구매자 정보는 Listing.buyerId에 저장됨
+    const [listings, total] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { buyerId, status: 'SOLD' },
+        include: {
+          lot: {
+            include: {
+              case: { select: { caseNo: true } },
+            },
+          },
+        },
+        orderBy: { purchasedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.listing.count({ where: { buyerId, status: 'SOLD' } }),
+    ]);
+
+    return {
+      items: listings.map((l) => ({
+        id: l.id,
+        lotId: l.lotId,
+        lotNo: l.lot.lotNo,
+        partType: l.lot.partType,
+        price: Number(l.price),
+        currency: l.currency,
+        status: 'COMPLETED' as const,
+        reuseGrade: l.lot.reuseGrade ?? undefined,
+        recycleGrade: l.lot.recycleGrade ?? undefined,
+        caseNo: l.lot.case?.caseNo,
+        purchasedAt: l.purchasedAt ?? l.createdAt,
+      })),
+      total,
+    };
+  }
+
   // ── lotNo 생성 ──
 
   private async generateLotNo(

@@ -60,8 +60,10 @@ export async function getLots(params?: {
   page?: number;
   limit?: number;
 }): Promise<{ items: Lot[]; total: number }> {
-  const { data } = await apiClient.get('/lots', { params });
-  return data;
+  // 백엔드: { items, total, skip, take }
+  const { data } = await apiClient.get<any>('/lots', { params });
+  if (Array.isArray(data?.items)) return { items: data.items, total: data.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? data?.meta?.total ?? 0 };
 }
 
 export async function getLot(id: string): Promise<Lot> {
@@ -73,8 +75,9 @@ export async function gradeCase(
   caseId: string,
   body: GradeBody,
 ): Promise<GradingResult> {
+  // 백엔드: @Controller('cases/:id/grade') + @Post() → POST /cases/:id/grade
   const { data } = await apiClient.post<GradingResult>(
-    `/cases/${caseId}/gradings`,
+    `/cases/${caseId}/grade`,
     body,
   );
   return data;
@@ -84,15 +87,17 @@ export async function createListing(
   lotId: string,
   body: CreateListingBody,
 ): Promise<Listing> {
+  // 백엔드: @Post('lots/:id/list') → POST /lots/:id/list
   const { data } = await apiClient.post<Listing>(
-    `/lots/${lotId}/listings`,
+    `/lots/${lotId}/list`,
     body,
   );
   return data;
 }
 
 export async function intakeConfirm(caseId: string): Promise<unknown> {
-  const { data } = await apiClient.post(`/cases/${caseId}/transition`, {
+  // 백엔드: POST /cases/:id/events/transition
+  const { data } = await apiClient.post(`/cases/${caseId}/events/transition`, {
     eventType: 'INTAKE_CONFIRMED',
     payload: { confirmedAt: new Date().toISOString() },
   });

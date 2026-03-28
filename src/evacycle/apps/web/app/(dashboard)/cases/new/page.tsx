@@ -193,6 +193,8 @@ function Step2({
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  // stale closure 방지 — uploadAll 완료 후 최신 파일 상태 참조용
+  const filesRef = useRef<UploadedFile[]>([]);
 
   function addFiles(fileList: FileList | null) {
     if (!fileList) return;
@@ -203,7 +205,11 @@ function Step2({
       progress: 0,
       status: 'pending',
     }));
-    setFiles((prev) => [...prev, ...added]);
+    setFiles((prev) => {
+      const next = [...prev, ...added];
+      filesRef.current = next;
+      return next;
+    });
   }
 
   function removeFile(idx: number) {
@@ -247,23 +253,28 @@ function Step2({
           size: f.file.size,
         });
 
-        setFiles((prev) =>
-          prev.map((x, idx) =>
-            idx === i ? { ...x, status: 'done', fileId, key, progress: 100 } : x,
-          ),
-        );
+        setFiles((prev) => {
+          const next = prev.map((x, idx) =>
+            idx === i ? { ...x, status: 'done' as const, fileId, key, progress: 100 } : x,
+          );
+          filesRef.current = next;
+          return next;
+        });
       } catch {
-        setFiles((prev) =>
-          prev.map((x, idx) =>
-            idx === i ? { ...x, status: 'error' } : x,
-          ),
-        );
+        setFiles((prev) => {
+          const next = prev.map((x, idx) =>
+            idx === i ? { ...x, status: 'error' as const } : x,
+          );
+          filesRef.current = next;
+          return next;
+        });
         toast({ variant: 'destructive', title: `${f.file.name} 업로드 실패` });
       }
     }
     setIsUploading(false);
 
-    const anyError = files.some((f) => f.status === 'error');
+    // filesRef.current로 최신 상태 확인 (stale closure 방지)
+    const anyError = filesRef.current.some((f) => f.status === 'error');
     if (!anyError) onNext();
   }
 
