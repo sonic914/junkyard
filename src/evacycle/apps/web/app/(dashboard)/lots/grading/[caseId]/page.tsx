@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { getCase } from '@/lib/api/cases';
-import { gradeCase } from '@/lib/api/lots';
+import { gradeCase, createLot } from '@/lib/api/lots';
 import type { ReuseGrade, RecycleGrade, RoutingDecision } from '@/lib/api/lots';
 import { CaseStatusBadge } from '@/components/common/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +62,7 @@ const ROUTING_OPTIONS: {
 // ─── 스키마 ───────────────────────────────────────────────────────────────────
 const gradingSchema = z.object({
   partType:        z.string().min(1, 'PartType을 선택하세요'),
+  weightKg:        z.coerce.number().min(0.01, '중량을 입력하세요'),
   reuseGrade:      z.enum(['A', 'B', 'C', 'D'] as const),
   recycleGrade:    z.enum(['R1', 'R2', 'R3'] as const),
   routingDecision: z.enum(['REUSE', 'RECYCLE', 'DISCARD'] as const),
@@ -113,6 +114,7 @@ export default function GradingPage() {
     resolver: zodResolver(gradingSchema),
     defaultValues: {
       partType:        '',
+      weightKg:        50,
       reuseGrade:      'A',
       recycleGrade:    'R1',
       routingDecision: 'REUSE',
@@ -121,7 +123,19 @@ export default function GradingPage() {
   });
 
   const gradeMut = useMutation({
-    mutationFn: (values: GradingForm) => gradeCase(caseId, values),
+    mutationFn: async (values: GradingForm) => {
+      // 1) 그레이딩 기록 생성
+      const grading = await gradeCase(caseId, values);
+
+      // 2) DISCARD가 아닐 때만 Lot 생성
+      if (grading.routingDecision !== 'DISCARD') {
+        await createLot(caseId, {
+          partType: values.partType,
+          weightKg: values.weightKg,
+        });
+      }
+      return grading;
+    },
     onSuccess: (result) => {
       const isDiscard = result.routingDecision === 'DISCARD';
       toast({
@@ -204,6 +218,30 @@ export default function GradingPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* 중량 */}
+              <FormField
+                control={form.control}
+                name="weightKg"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>중량 (kg)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="예: 50"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      부품 실측 중량을 입력하세요 (기본값 50kg)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

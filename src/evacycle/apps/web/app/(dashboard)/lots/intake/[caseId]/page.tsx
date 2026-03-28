@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getCase } from '@/lib/api/cases';
 import { intakeConfirm } from '@/lib/api/lots';
+import { useAuthStore } from '@/lib/store/auth';
 import { CaseStatusBadge } from '@/components/common/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import {
 export default function IntakePage() {
   const { caseId } = useParams<{ caseId: string }>();
   const router = useRouter();
+  const currentUser = useAuthStore((s) => s.user);
 
   const { data: caseItem, isLoading } = useQuery({
     queryKey: ['case', caseId],
@@ -29,7 +31,7 @@ export default function IntakePage() {
   });
 
   const intakeMut = useMutation({
-    mutationFn: () => intakeConfirm(caseId),
+    mutationFn: () => intakeConfirm(caseId, currentUser?.id ?? ''),
     onSuccess: () => {
       toast({
         title: '입고 확인 완료',

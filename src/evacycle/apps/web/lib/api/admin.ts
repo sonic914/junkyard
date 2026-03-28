@@ -66,6 +66,16 @@ export async function batchApproveSettlements(
   return data;
 }
 
+// ─── Cases (Admin) ───────────────────────────────────────────────────────────
+
+export async function updateAdminCase(
+  id: string,
+  body: { hubOrgId?: string; notes?: string },
+): Promise<unknown> {
+  const { data } = await apiClient.patch(`/admin/cases/${id}`, body);
+  return data;
+}
+
 // ─── Organizations ────────────────────────────────────────────────────────────
 
 export async function getOrganizations(): Promise<Organization[]> {

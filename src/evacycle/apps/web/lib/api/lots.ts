@@ -48,6 +48,13 @@ export interface GradeBody {
   notes?: string;
 }
 
+export interface CreateLotBody {
+  partType: string;
+  weightKg: number;
+  quantity?: number;
+  description?: string;
+}
+
 export interface CreateListingBody {
   price: number;
 }
@@ -83,6 +90,15 @@ export async function gradeCase(
   return data;
 }
 
+export async function createLot(
+  caseId: string,
+  body: CreateLotBody,
+): Promise<Lot> {
+  // 백엔드: POST /cases/:id/lots
+  const { data } = await apiClient.post<Lot>(`/cases/${caseId}/lots`, body);
+  return data;
+}
+
 export async function createListing(
   lotId: string,
   body: CreateListingBody,
@@ -95,11 +111,17 @@ export async function createListing(
   return data;
 }
 
-export async function intakeConfirm(caseId: string): Promise<unknown> {
+export async function intakeConfirm(
+  caseId: string,
+  receivedBy: string,
+): Promise<unknown> {
   // 백엔드: POST /cases/:id/events/transition
   const { data } = await apiClient.post(`/cases/${caseId}/events/transition`, {
     eventType: 'INTAKE_CONFIRMED',
-    payload: { confirmedAt: new Date().toISOString() },
+    payload: {
+      receivedBy,
+      receivedAt: new Date().toISOString(),
+    },
   });
   return data;
 }

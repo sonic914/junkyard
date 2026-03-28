@@ -7,12 +7,14 @@ import { AdminSettlementsController } from './admin-settlements.controller';
 import { AdminSettlementRulesController } from './admin-settlement-rules.controller';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminLedgerController } from './admin-ledger.controller';
+import { AdminCasesController } from './admin-cases.controller';
 import { SettlementsModule } from '../settlements/settlements.module';
 
 @Module({
   imports: [SettlementsModule],
   controllers: [
     AdminController,
+    AdminCasesController,
     AdminGradingRulesController,
     AdminDashboardController,
     AdminSettlementsController,
