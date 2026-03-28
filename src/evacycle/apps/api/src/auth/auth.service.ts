@@ -27,7 +27,7 @@ export class AuthService {
   // ──────────────────────────────────────────────
   // OTP 발송
   // ──────────────────────────────────────────────
-  async sendOtp(email: string): Promise<{ message: string; expiresIn: number }> {
+  async sendOtp(email: string): Promise<{ message: string; expiresIn: number; otp?: string }> {
     const otp = String(randomInt(100000, 999999));
     const ttl = this.configService.get<number>('OTP_TTL_SECONDS', 300);
 
@@ -36,7 +36,12 @@ export class AuthService {
     // TODO: nodemailer로 실제 이메일 발송 (SMTP 설정에 의존)
     // 발송 실패해도 200 반환 (이메일 존재 여부 노출 방지)
 
-    return { message: 'OTP sent', expiresIn: ttl };
+    return {
+      message: 'OTP sent',
+      expiresIn: ttl,
+      // dev 모드에서만 OTP 응답에 포함 (SMTP 없이 테스트 가능)
+      ...(process.env.NODE_ENV === 'development' && { otp }),
+    };
   }
 
   // ──────────────────────────────────────────────
