@@ -19,12 +19,12 @@ export interface ConfirmFileBody {
 /** Step 1: Presigned URL 요청 */
 export async function presignFile(
   caseId: string,
-  filename: string,
-  contentType: string,
+  file: File,
 ): Promise<PresignedUrlResponse> {
+  const fileType = file.type.startsWith('image/') ? 'IMAGE' : 'DOCUMENT';
   const { data } = await apiClient.post<PresignedUrlResponse>(
     `/cases/${caseId}/files/presign`,
-    { filename, contentType },
+    { fileName: file.name, fileType, contentType: file.type },
   );
   return data;
 }

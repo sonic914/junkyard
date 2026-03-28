@@ -224,11 +224,7 @@ function Step2({
 
       try {
         // 1) Presign
-        const { uploadUrl, key, fileId } = await presignFile(
-          caseId,
-          f.file.name,
-          f.file.type,
-        );
+        const { uploadUrl, key, fileId } = await presignFile(caseId, f.file);
 
         // 2) Upload
         setFiles((prev) =>
