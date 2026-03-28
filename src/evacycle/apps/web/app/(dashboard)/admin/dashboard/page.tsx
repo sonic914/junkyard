@@ -114,7 +114,8 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const chartData = data.caseStatusDistribution.map((item) => ({
+  // ✅ COD-16: 배열/숫자 필드 undefined 방어
+  const chartData = (data?.caseStatusDistribution ?? []).map((item) => ({
     name: STATUS_LABELS[item.status] ?? item.status,
     value: item.count,
     color: STATUS_COLORS[item.status] ?? '#94a3b8',
@@ -124,7 +125,7 @@ export default function AdminDashboardPage() {
     style: 'currency',
     currency: 'KRW',
     maximumFractionDigits: 0,
-  }).format(data.monthlySettlementAmount);
+  }).format(data?.monthlySettlementAmount ?? 0);
 
   return (
     <div className="space-y-6">
@@ -134,19 +135,19 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           title="전체 케이스"
-          value={data.totalCases.toLocaleString()}
+          value={(data?.totalCases ?? 0).toLocaleString()}
           icon={FileText}
           sub="전체 등록 케이스"
         />
         <KpiCard
           title="진행중"
-          value={data.activeCases.toLocaleString()}
+          value={(data?.activeCases ?? 0).toLocaleString()}
           icon={Activity}
           sub="SUBMITTED ~ ON_SALE"
         />
         <KpiCard
           title="정산 대기"
-          value={data.pendingSettlements.toLocaleString()}
+          value={(data?.pendingSettlements ?? 0).toLocaleString()}
           icon={Clock}
           sub="PENDING 상태 정산건"
         />
@@ -202,12 +203,12 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {data.recentActivities.length === 0 && (
+              {(data?.recentActivities ?? []).length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   최근 활동이 없습니다
                 </p>
               )}
-              {data.recentActivities.map((activity) => (
+              {(data?.recentActivities ?? []).map((activity) => (
                 <div
                   key={activity.id}
                   className="flex items-start gap-3 border-b pb-3 last:border-0"
