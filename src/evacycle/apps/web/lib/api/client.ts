@@ -4,8 +4,13 @@ import { useAuthStore } from '@/lib/store/auth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 const REFRESH_URL = '/auth/token/refresh';
 
+// 브라우저: Next.js rewrites 프록시 경유 → CORS 우회
+// 서버(SSR/미들웨어): 백엔드 직접 호출
+const BASE_URL =
+  typeof window === 'undefined' ? `${API_URL}/v1` : '/api/backend';
+
 export const apiClient = axios.create({
-  baseURL: `${API_URL}/v1`,
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
 });
@@ -74,7 +79,7 @@ apiClient.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await axios.post(`${API_URL}/v1${REFRESH_URL}`, {
+      const { data } = await axios.post(`${BASE_URL}${REFRESH_URL}`, {
         refreshToken,
       });
       const { accessToken, refreshToken: newRefreshToken } = data;
