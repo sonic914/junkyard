@@ -223,8 +223,9 @@ test('7. Lot Listing 등록', async ({ page }) => {
 
   await loginAs(page, 'hub@evacycle.com');
   await page.goto(`/lots/${state.lotId}`);
-
-  // "Listing 생성" 버튼 → 다이얼로그 열기
+  await page.waitForLoadState("networkidle");
+  // "Listing 생성" 버튼이 나타날 때까지 명시적 대기
+  await page.getByRole('button', { name: 'Listing 생성' }).waitFor({ state: "visible", timeout: 15000 });
   await page.getByRole('button', { name: 'Listing 생성' }).click();
 
   // 다이얼로그 타이틀: "고정가 Listing 생성"
