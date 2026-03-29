@@ -37,12 +37,12 @@ export async function getMarketplaceLots(params?: {
   sortBy?: 'price_asc' | 'price_desc' | 'created_desc';
   page?: number;
   limit?: number;
-}): Promise<{ items: MarketplaceLot[]; total: number }> {
+}): Promise<{ items: MarketplaceLot[]; total: number; page: number; limit: number }> {
   // COD-27: PaginatedResponse<T>
   const { data } = await apiClient.get<any>('/lots', {
     params: { ...params, status: 'ON_SALE' },
   });
-  return { items: data?.data ?? [], total: data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0, page: data?.page ?? 1, limit: data?.limit ?? 20 };
 }
 
 export async function getMarketplaceLot(id: string): Promise<MarketplaceLot> {
@@ -60,7 +60,7 @@ export async function purchaseLot(lotId: string): Promise<PurchaseResult> {
 export async function getMyOrders(params?: {
   page?: number;
   limit?: number;
-}): Promise<{ items: Order[]; total: number }> {
+}): Promise<{ items: Order[]; total: number; page: number; limit: number }> {
   const { data } = await apiClient.get('/marketplace/orders', { params });
   return data;
 }

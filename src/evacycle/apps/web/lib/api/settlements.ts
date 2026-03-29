@@ -9,5 +9,5 @@ export async function getMySettlements(
 ): Promise<SettlementListResponse> {
   // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/settlements', { params });
-  return { items: data?.data ?? [], total: data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0, page: data?.page ?? 1, limit: data?.limit ?? 20 };
 }

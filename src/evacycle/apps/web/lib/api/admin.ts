@@ -28,7 +28,7 @@ export async function getAdminSettlements(
 ): Promise<SettlementListResponse> {
   // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/admin/settlements', { params });
-  return { items: data?.data ?? [], total: data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0, page: data?.page ?? 1, limit: data?.limit ?? 20 };
 }
 
 export async function approveSettlement(id: string): Promise<Settlement> {
@@ -115,10 +115,10 @@ export async function deleteOrganization(id: string): Promise<void> {
 
 export async function getAdminUsers(
   params?: PaginationParams,
-): Promise<{ items: User[]; total: number }> {
+): Promise<{ items: User[]; total: number; page: number; limit: number }> {
   // COD-27: PaginatedResponse<T> → data 배열
   const { data } = await apiClient.get<any>('/admin/users', { params });
-  return { items: data?.data ?? [], total: data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0, page: data?.page ?? 1, limit: data?.limit ?? 20 };
 }
 
 export async function updateUserRole(
@@ -195,7 +195,7 @@ export async function getLedger(params?: {
   caseId?: string;
   page?: number;
   limit?: number;
-}): Promise<{ items: LedgerEntry[]; total: number }> {
+}): Promise<{ items: LedgerEntry[]; total: number; page: number; limit: number }> {
   const { data } = await apiClient.get('/admin/ledger', { params });
   return data;
 }

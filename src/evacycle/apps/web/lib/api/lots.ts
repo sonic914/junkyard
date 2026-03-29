@@ -22,7 +22,7 @@ export interface Listing {
   id: string;
   lotId: string;
   price: number;
-  status: 'OPEN' | 'SOLD' | 'CANCELLED';
+  status: 'DRAFT' | 'ACTIVE' | 'OPEN' | 'SOLD' | 'CANCELLED';
   createdAt: string;
 }
 
@@ -66,10 +66,10 @@ export async function getLots(params?: {
   caseId?: string;
   page?: number;
   limit?: number;
-}): Promise<{ items: Lot[]; total: number }> {
+}): Promise<{ items: Lot[]; total: number; page: number; limit: number }> {
   // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/lots', { params });
-  return { items: data?.data ?? [], total: data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0, page: data?.page ?? 1, limit: data?.limit ?? 20 };
 }
 
 export async function getLot(id: string): Promise<Lot> {

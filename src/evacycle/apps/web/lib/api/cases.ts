@@ -29,7 +29,7 @@ export async function getCases(
 ): Promise<CaseListResponse> {
   // COD-27: PaginatedResponse<T> → { data, total, page, limit, totalPages }
   const { data } = await apiClient.get<any>('/cases', { params });
-  return { items: data?.data ?? [], total: data?.total ?? 0 };
+  return { items: data?.data ?? [], total: data?.total ?? 0, page: data?.page ?? 1, limit: data?.limit ?? 20 };
 }
 
 export async function getCase(id: string): Promise<CaseItem> {
