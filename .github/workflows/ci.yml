@@ -46,7 +46,6 @@ jobs:
             --name minio \
             minio/minio:latest server /data
           sleep 5
-          echo "MinIO started"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,17 +54,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Debug - Check environment
-        run: |
-          echo "=== Node/npm versions ==="
-          node --version
-          npm --version
-          echo "=== Directory structure ==="
-          ls -la
-          ls -la src/evacycle/
-          echo "=== package-lock.json exists? ==="
-          ls -la src/evacycle/package-lock.json
 
       - name: Install dependencies
         working-directory: src/evacycle
@@ -127,39 +115,27 @@ jobs:
         run: npx prisma generate
 
       - name: Build API
+        id: build-api
         working-directory: src/evacycle/apps/api
+        continue-on-error: true
         run: |
-          echo "=== Node/npm/tsc versions ==="
-          node --version && npm --version && npx tsc --version
-          echo "=== Prisma client check ==="
-          ls node_modules/.prisma/client/ 2>/dev/null | head -5 || echo "No .prisma/client in local node_modules"
-          ls ../../node_modules/.prisma/client/ 2>/dev/null | head -5 || echo "No .prisma/client in root node_modules"
-          echo "=== TypeScript check (noEmit) ==="
-          npx tsc -p tsconfig.build.json --noEmit 2>&1 | tee /tmp/tsc-errors.txt; TS_EXIT=${PIPESTATUS[0]}
-          echo "noEmit exit: $TS_EXIT"
-          echo "=== Full build ==="
-          npx tsc -p tsconfig.build.json 2>&1 | tee /tmp/build-output.txt; BUILD_EXIT=${PIPESTATUS[0]}
-          echo "Build exit: $BUILD_EXIT"
-          exit $BUILD_EXIT
-
-      - name: Read build errors
-        id: read-errors
-        if: failure()
-        run: |
-          ERRORS=$(cat /tmp/tsc-errors.txt 2>/dev/null | head -80 || echo "로그 없음")
-          echo "errors<<DELIM" >> $GITHUB_OUTPUT
-          echo "$ERRORS" >> $GITHUB_OUTPUT
-          echo "DELIM" >> $GITHUB_OUTPUT
+          npx tsc -p tsconfig.build.json 2>&1 | tee /tmp/build-errors.txt
+          exit ${PIPESTATUS[0]}
 
       - name: Send build error to Telegram
-        if: failure()
+        if: steps.build-api.outcome == 'failure'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_TO }}" \
-            -d parse_mode="HTML" \
-            --data-urlencode "text=❌ Build API 실패 로그:
+          ERROR=$(head -50 /tmp/build-errors.txt | tr '\n' '|')
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_TO}" \
+            -d "text=❌ Build API 실패 로그: ${ERROR}"
 
-${{ steps.read-errors.outputs.errors }}"
+      - name: Fail if build failed
+        if: steps.build-api.outcome == 'failure'
+        run: exit 1
 
       - name: Build Web
         working-directory: src/evacycle/apps/web
