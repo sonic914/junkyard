@@ -122,6 +122,10 @@ jobs:
         working-directory: src/evacycle
         run: npm ci
 
+      - name: Generate Prisma client
+        working-directory: src/evacycle/apps/api
+        run: npx prisma generate
+
       - name: Build API
         working-directory: src/evacycle/apps/api
         run: npm run build
