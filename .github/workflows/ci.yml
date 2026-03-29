@@ -129,11 +129,27 @@ jobs:
       - name: Build API
         working-directory: src/evacycle/apps/api
         run: |
-          echo "=== TypeScript version ==="
-          npx tsc --version
-          echo "=== Build ==="
-          npx tsc -p tsconfig.build.json 2>&1
-          echo "Build exit: $?"
+          echo "=== Node/npm/tsc versions ==="
+          node --version && npm --version && npx tsc --version
+          echo "=== Prisma client check ==="
+          ls node_modules/.prisma/client/ 2>/dev/null | head -5 || echo "No .prisma/client in local node_modules"
+          ls ../../node_modules/.prisma/client/ 2>/dev/null | head -5 || echo "No .prisma/client in root node_modules"
+          echo "=== TypeScript check (noEmit) ==="
+          npx tsc -p tsconfig.build.json --noEmit 2>&1 | tee /tmp/tsc-errors.txt; TS_EXIT=${PIPESTATUS[0]}
+          echo "noEmit exit: $TS_EXIT"
+          echo "=== Full build ==="
+          npx tsc -p tsconfig.build.json 2>&1 | tee /tmp/build-output.txt; BUILD_EXIT=${PIPESTATUS[0]}
+          echo "Build exit: $BUILD_EXIT"
+          exit $BUILD_EXIT
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            /tmp/tsc-errors.txt
+            /tmp/build-output.txt
 
       - name: Build Web
         working-directory: src/evacycle/apps/web
