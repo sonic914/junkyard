@@ -73,12 +73,17 @@ export class CasesController {
 
   @Get()
   async findAll(
-    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
-    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Query('page',  new DefaultValuePipe(1),  ParseIntPipe) page  = 1,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
+    // 레거시 skip/take 호환
+    @Query('skip',  new DefaultValuePipe(-1), ParseIntPipe) skip  = -1,
+    @Query('take',  new DefaultValuePipe(-1), ParseIntPipe) take  = -1,
     @Request() req: any,
   ) {
+    const resolvedSkip = skip >= 0 ? skip : (page - 1) * limit;
+    const resolvedTake = take >= 0 ? take : limit;
     const orgFilter = req.user.role === UserRole.ADMIN ? undefined : req.user.orgId;
-    return this.casesService.findAll(skip, take, orgFilter);
+    return this.casesService.findAll(resolvedSkip, resolvedTake, orgFilter);
   }
 
   @Get(':id')
