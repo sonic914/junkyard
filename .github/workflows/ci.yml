@@ -106,36 +106,22 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
+      - name: Install dependencies (npm ci with fallback)
         working-directory: src/evacycle
-        run: npm install --prefer-offline
+        run: npm ci || (echo "npm ci failed, trying npm install" && npm install)
 
       - name: Generate Prisma client
         working-directory: src/evacycle/apps/api
         run: npx prisma generate
 
+      - name: Show TypeScript version
+        working-directory: src/evacycle/apps/api
+        run: npx tsc --version && node -e "console.log('class-validator:', require('class-validator/package.json').version)"
+
       - name: Build API
         id: build-api
         working-directory: src/evacycle/apps/api
-        continue-on-error: true
-        run: |
-          npx tsc -p tsconfig.build.json 2>&1 | tee /tmp/build-errors.txt
-          exit ${PIPESTATUS[0]}
-
-      - name: Send build error to Telegram
-        if: steps.build-api.outcome == 'failure'
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
-        run: |
-          ERROR=$(head -50 /tmp/build-errors.txt | tr '\n' '|')
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_TO}" \
-            -d "text=❌ Build API 실패 로그: ${ERROR}"
-
-      - name: Fail if build failed
-        if: steps.build-api.outcome == 'failure'
-        run: exit 1
+        run: npx tsc -p tsconfig.build.json
 
       - name: Build Web
         working-directory: src/evacycle/apps/web
