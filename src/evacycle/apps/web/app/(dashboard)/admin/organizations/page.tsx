@@ -270,7 +270,7 @@ export default function AdminOrganizationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(data ?? []).length === 0 && (
+                {(Array.isArray(data) ? data : []).length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -280,7 +280,7 @@ export default function AdminOrganizationsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {(data ?? []).map((org) => (
+                {(Array.isArray(data) ? data : []).map((org) => (
                   <TableRow key={org.id}>
                     <TableCell className="font-medium">{org.name}</TableCell>
                     <TableCell>{ORG_TYPE_LABELS[org.type]}</TableCell>
