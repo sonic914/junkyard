@@ -102,8 +102,52 @@ export default function LoginPage() {
     index: number,
     e: React.KeyboardEvent<HTMLInputElement>,
   ) {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
+    // COD-45: Backspace — 현재 칸 비어있으면 이전 칸으로 이동 + 이전 칸 지우기
+    if (e.key === 'Backspace') {
+      if (!otpDigits[index] && index > 0) {
+        const next = [...otpDigits];
+        next[index - 1] = '';
+        setOtpDigits(next);
+        otpRefs.current[index - 1]?.focus();
+      }
+    }
+
+    // 숫자 키 직접 입력 시 현재 칸 교체 후 다음 칸 이동
+    if (/^\d$/.test(e.key)) {
+      e.preventDefault();
+      const next = [...otpDigits];
+      next[index] = e.key;
+      setOtpDigits(next);
+      if (index < 5) otpRefs.current[index + 1]?.focus();
+      if (next.every((d) => d !== '')) {
+        const otp = next.join('');
+        otpForm.setValue('otp', otp);
+        handleOtpVerify(otp);
+      }
+    }
+  }
+
+  // COD-45: 붙여넣기 핸들러 — 6자리 숫자 자동 분배
+  function handleOtpPaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+
+    const next = [...otpDigits];
+    for (let i = 0; i < pasted.length; i++) {
+      next[i] = pasted[i];
+    }
+    setOtpDigits(next);
+
+    // 포커스: 붙여넣은 마지막 자리 다음 칸 (또는 마지막 칸)
+    const focusIdx = Math.min(pasted.length, 5);
+    otpRefs.current[focusIdx]?.focus();
+
+    // 6자리 완성 시 자동 제출
+    if (next.every((d) => d !== '')) {
+      const otp = next.join('');
+      otpForm.setValue('otp', otp);
+      handleOtpVerify(otp);
     }
   }
 
@@ -203,6 +247,7 @@ export default function LoginPage() {
                     value={digit}
                     onChange={(e) => handleOtpChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    onPaste={handleOtpPaste}
                     disabled={isLoading}
                     className="h-12 w-12 rounded-md border border-input bg-background text-center text-lg font-semibold ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
                   />
