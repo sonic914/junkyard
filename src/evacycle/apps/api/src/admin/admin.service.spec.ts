@@ -141,10 +141,10 @@ describe('AdminService — User Management', () => {
     const service = new AdminService(prisma);
     const result = await service.findAllUsers(undefined, undefined, 0, 20);
 
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].orgName).toBe('TestOrg');
-    expect(result.items[0].stats.casesCount).toBe(5);
-    expect(result.items[0].stats.settlementsTotal).toBe('5600000');
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].orgName).toBe('TestOrg');
+    expect(result.data[0].stats.casesCount).toBe(5);
+    expect(result.data[0].stats.settlementsTotal).toBe('5600000');
     expect(result.total).toBe(1);
   });
 
