@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -35,6 +36,17 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // ──────────────────────────────────────────────
+  // GET /auth/otp/peek?email=... (dev only)
+  @Public()
+  @Get('otp/peek')
+  async peekOtp(@Query('email') email: string, @Res() res: Response) {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(403).json({ message: 'dev only' });
+    }
+    const otp = await this.authService.peekOtp(email);
+    return res.json({ otp });
+  }
+
   // POST /auth/otp/send
   // ──────────────────────────────────────────────
   @Public()

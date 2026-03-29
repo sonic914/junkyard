@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsNumber, IsOptional, Max } from 'class-validator';
+import { IsEnum, IsInt, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   PartType,

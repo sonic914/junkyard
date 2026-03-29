@@ -47,6 +47,11 @@ export class AuthService {
   // ──────────────────────────────────────────────
   // OTP 검증 + JWT 발급
   // ──────────────────────────────────────────────
+  async peekOtp(email: string): Promise<string | null> {
+    if (process.env.NODE_ENV !== 'development') return null;
+    return this.redis.get(`otp:${email}`);
+  }
+
   async verifyOtp(email: string, otp: string): Promise<AuthTokens & { user: any }> {
     const stored = await this.redis.get(`otp:${email}`);
 

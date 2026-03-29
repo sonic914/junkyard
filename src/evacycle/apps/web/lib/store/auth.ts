@@ -47,10 +47,10 @@ function clearSessionCookie(): void {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      accessToken: null,
+      accessToken: (typeof window !== 'undefined' ? (window as any).__E2E_AUTH__?.accessToken ?? null : null),
       refreshToken: null,
-      user: null,
-      isAuthenticated: false,
+      user: (typeof window !== 'undefined' ? (window as any).__E2E_AUTH__?.user ?? null : null),
+      isAuthenticated: (typeof window !== 'undefined' ? !!(window as any).__E2E_AUTH__?.accessToken : false),
 
       setTokens: (accessToken, refreshToken) => {
         set({ accessToken, refreshToken, isAuthenticated: true });
@@ -64,10 +64,10 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         set({
-          accessToken: null,
+          accessToken: (typeof window !== 'undefined' ? (window as any).__E2E_AUTH__?.accessToken ?? null : null),
           refreshToken: null,
-          user: null,
-          isAuthenticated: false,
+          user: (typeof window !== 'undefined' ? (window as any).__E2E_AUTH__?.user ?? null : null),
+          isAuthenticated: (typeof window !== 'undefined' ? !!(window as any).__E2E_AUTH__?.accessToken : false),
         });
         clearSessionCookie();
         // React Query 캐시 전체 초기화 — 다른 사용자 데이터 노출 방지
@@ -105,4 +105,12 @@ export function getRoleRedirectPath(role: UserRole): string {
     default:
       return '/';
   }
+}
+
+// ─── Dev-only: E2E 테스트용 전역 store 노출 ───────────────────────────────
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  (window as any).__evacycleSetAuth = (accessToken: string, user: { id: string; name: string; email: string; role: string; orgId: string }) => {
+    useAuthStore.getState().setTokens(accessToken, '');
+    useAuthStore.getState().setUser(user as any);
+  };
 }

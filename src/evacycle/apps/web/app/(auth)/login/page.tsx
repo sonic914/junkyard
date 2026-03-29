@@ -176,7 +176,12 @@ export default function LoginPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button 
+                  type="button" 
+                  className="w-full" 
+                  disabled={isLoading}
+                  onClick={emailForm.handleSubmit(onEmailSubmit)}
+                >
                   {isLoading ? '발송 중...' : 'OTP 받기'}
                 </Button>
               </form>

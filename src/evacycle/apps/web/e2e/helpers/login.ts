@@ -1,77 +1,83 @@
 import { Page } from '@playwright/test';
 
-const API = process.env.API_URL ?? 'http://localhost:3000/v1';
+const PROXY = 'http://localhost:3001/api/backend';
+const API_DIRECT = process.env.API_URL ?? 'http://localhost:3000/v1';
+
+const ROLE_REDIRECT: Record<string, string> = {
+  ADMIN: '/admin',
+  JUNKYARD: '/cases',
+  HUB: '/lots',
+  BUYER: '/marketplace',
+};
 
 /**
- * OTP 로그인 헬퍼
- * - UI에서 "OTP 받기" 클릭 → 응답을 인터셉트해서 OTP 추출
- * - 기존 방식(API 먼저 호출)은 UI 클릭 시 새 OTP 발급으로 무효화됨
+ * OTP 로그인 헬퍼 — addInitScript 방식
+ * 1. 프록시 경유 OTP send/verify → accessToken + user 획득
+ * 2. addInitScript로 window.__E2E_AUTH__ 설정 (이후 모든 페이지 로드에 적용)
+ * 3. evacycle-session 쿠키 설정 → middleware 통과
+ * 4. 역할별 대시보드로 이동 (auth store가 __E2E_AUTH__에서 accessToken 자동 읽음)
  */
 export async function loginAs(page: Page, email: string): Promise<void> {
-  await page.goto('/login');
-
-  // 1. OTP 응답 인터셉트
-  let capturedOtp: string | null = null;
-  page.on('response', async (res) => {
-    if (res.url().includes('/auth/otp/send') && res.ok()) {
-      try {
-        const body = await res.json();
-        if (body.otp) capturedOtp = body.otp;
-      } catch {}
-    }
+  // 1단계: OTP 발송
+  const sendRes = await page.request.post(`${PROXY}/auth/otp/send`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: { email },
   });
+  const sendData = await sendRes.json();
+  const otp: string = sendData.otp;
+  if (!otp) throw new Error(`OTP 없음 (email: ${email})`);
 
-  // 2. 이메일 입력 + OTP 발송
-  const emailInput = page.locator('input[type="email"]')
-    .or(page.locator('input[placeholder*="이메일"]'))
-    .or(page.locator('input[name="email"]'))
-    .first();
-  await emailInput.fill(email);
-  await page.getByRole('button', { name: /OTP 받기/i }).click();
-
-  // 3. OTP 캡처 대기 (최대 5초)
-  for (let i = 0; i < 50; i++) {
-    if (capturedOtp) break;
-    await page.waitForTimeout(100);
-  }
-  if (!capturedOtp) throw new Error(`OTP 캡처 실패 (email: ${email})`);
-
-  // 4. OTP 6칸 입력 (pressSequentially → React onChange 트리거)
-  const digits = capturedOtp.split('');
-  const inputs = page.locator('input[maxlength="1"]');
-  await inputs.first().click();
-  for (let i = 0; i < 6; i++) {
-    await inputs.nth(i).click();
-    await inputs.nth(i).pressSequentially(digits[i], { delay: 80 });
-    await page.waitForTimeout(60);
-  }
-
-  // 5. 자동 제출 + 대시보드 진입 대기
-  await page.waitForTimeout(800);
-  await page.waitForURL(/\/(admin|cases|lots|marketplace|settlements)/, {
-    timeout: 15000,
+  // 2단계: OTP 검증
+  const verifyRes = await page.request.post(`${PROXY}/auth/otp/verify`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: { email, otp },
   });
+  const verifyData = await verifyRes.json();
+  if (!verifyData.accessToken) throw new Error(`accessToken 없음: ${JSON.stringify(verifyData)}`);
+
+  const { accessToken, user } = verifyData;
+
+  // 3단계: addInitScript로 모든 페이지 로드 전에 __E2E_AUTH__ 주입
+  await page.addInitScript((authData) => {
+    (window as any).__E2E_AUTH__ = authData;
+  }, { accessToken, user });
+
+  // 4단계: evacycle-session 쿠키 설정 → middleware 통과
+  await page.context().addCookies([
+    {
+      name: 'evacycle-session',
+      value: encodeURIComponent(JSON.stringify({ isAuthenticated: true, role: user.role })),
+      domain: 'localhost',
+      path: '/',
+      sameSite: 'Lax',
+    },
+  ]);
+
+  // 5단계: 역할별 대시보드로 이동
+  const redirect = ROLE_REDIRECT[user.role as string] ?? '/';
+  await page.goto(redirect);
+  await page.waitForURL(new RegExp(redirect.replace('/', '\\/')), { timeout: 15000 });
 }
 
 /**
- * API 직접 호출용 accessToken 획득 (UI 없이 백엔드 조작 단계에 사용)
+ * API 직접 호출용 accessToken 획득
  */
 export async function getAccessToken(email: string): Promise<string> {
-  const sendRes = await fetch(`${API}/auth/otp/send`, {
+  const sendRes = await fetch(`${API_DIRECT}/auth/otp/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
   const sendData = await sendRes.json();
   const otp: string = sendData.otp;
-  if (!otp) throw new Error(`OTP 응답 없음 (email: ${email})`);
+  if (!otp) throw new Error(`OTP 없음`);
 
-  const verifyRes = await fetch(`${API}/auth/otp/verify`, {
+  const verifyRes = await fetch(`${API_DIRECT}/auth/otp/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, otp }),
   });
   const verifyData = await verifyRes.json();
-  if (!verifyData.accessToken) throw new Error(`accessToken 없음 (email: ${email})`);
+  if (!verifyData.accessToken) throw new Error(`accessToken 없음`);
   return verifyData.accessToken;
 }

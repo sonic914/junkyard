@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsOptional } from 'class-validator';
+import { IsEnum, IsString, IsOptional, IsNumber, Min } from 'class-validator';
 import { PartType, ReuseGrade, RecycleGrade, RoutingDecision } from '@prisma/client';
 
 export class CreateGradingDto {
@@ -13,6 +13,11 @@ export class CreateGradingDto {
 
   @IsEnum(RoutingDecision)
   routingDecision!: RoutingDecision;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @IsOptional()
+  weightKg?: number;
 
   @IsString()
   @IsOptional()

@@ -116,6 +116,7 @@ function CaseActions({
           >
             <XCircle className="mr-2 h-4 w-4" />
             취소
+          </Button>
         </>
       )}
     </div>

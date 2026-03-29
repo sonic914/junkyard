@@ -163,7 +163,7 @@ function Step1({
           />
         </div>
         <div className="flex justify-end">
-          <Button type="submit">
+          <Button type="button" onClick={form.handleSubmit(onNext)}>
             다음 <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
