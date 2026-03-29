@@ -128,7 +128,12 @@ jobs:
 
       - name: Build API
         working-directory: src/evacycle/apps/api
-        run: npm run build
+        run: |
+          echo "=== TypeScript version ==="
+          npx tsc --version
+          echo "=== Build ==="
+          npx tsc -p tsconfig.build.json 2>&1
+          echo "Build exit: $?"
 
       - name: Build Web
         working-directory: src/evacycle/apps/web
