@@ -1,0 +1,6 @@
+{
+  "name": "@evacycle/blockchain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Blockchain integration for EVACYCLE"
+}
