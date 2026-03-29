@@ -81,12 +81,6 @@ jobs:
           DATABASE_URL: postgresql://evacycle_user:test_password@localhost:5432/evacycle_test
         run: npx prisma db push --force-reset --accept-data-loss
 
-      - name: Seed DB
-        working-directory: src/evacycle/apps/api
-        env:
-          DATABASE_URL: postgresql://evacycle_user:test_password@localhost:5432/evacycle_test
-        run: npx ts-node prisma/seed.ts
-
       - name: Run E2E tests
         working-directory: src/evacycle/apps/api
         env:
