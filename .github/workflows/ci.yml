@@ -142,14 +142,24 @@ jobs:
           echo "Build exit: $BUILD_EXIT"
           exit $BUILD_EXIT
 
-      - name: Upload build logs
+      - name: Read build errors
+        id: read-errors
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            /tmp/tsc-errors.txt
-            /tmp/build-output.txt
+        run: |
+          ERRORS=$(cat /tmp/tsc-errors.txt 2>/dev/null | head -80 || echo "로그 없음")
+          echo "errors<<DELIM" >> $GITHUB_OUTPUT
+          echo "$ERRORS" >> $GITHUB_OUTPUT
+          echo "DELIM" >> $GITHUB_OUTPUT
+
+      - name: Send build error to Telegram
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_TO }}" \
+            -d parse_mode="HTML" \
+            --data-urlencode "text=❌ Build API 실패 로그:
+
+${{ steps.read-errors.outputs.errors }}"
 
       - name: Build Web
         working-directory: src/evacycle/apps/web
