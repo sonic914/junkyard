@@ -108,15 +108,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: src/evacycle
-        run: |
-          npm ci 2>&1 | tee /tmp/npm-install-log.txt; NPM_EXIT=${PIPESTATUS[0]}
-          if [ $NPM_EXIT -ne 0 ]; then
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage"               -d "chat_id=${TELEGRAM_TO}"               -d "text=❌ Build 잡 npm ci 실패:$(head -30 /tmp/npm-install-log.txt | tr '\n' '|')"
-          fi
-          exit $NPM_EXIT
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+        run: npm install --prefer-offline
 
       - name: Generate Prisma client
         working-directory: src/evacycle/apps/api
