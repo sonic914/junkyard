@@ -22,7 +22,7 @@ export interface Listing {
   id: string;
   lotId: string;
   price: number;
-  status: 'DRAFT' | 'ACTIVE' | 'OPEN' | 'SOLD' | 'CANCELLED';
+  status: 'DRAFT' | 'ACTIVE' | 'SOLD' | 'CANCELLED';
   createdAt: string;
 }
 

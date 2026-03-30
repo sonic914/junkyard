@@ -19,6 +19,10 @@ import { useAuthStore } from '@/lib/store/auth';
  */
 function SilentRefreshProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    // E2E 테스트 모드: __E2E_AUTH__ 주입된 경우 refresh 스킵
+    // (실제 refreshToken 쿠키 없으므로 refresh 실패 → logout 방지)
+    if (typeof window !== 'undefined' && (window as any).__E2E_AUTH__?.accessToken) return;
+
     const store = useAuthStore.getState();
     const { isAuthenticated, setTokens, logout, user } = store;
     if (!isAuthenticated) return;
