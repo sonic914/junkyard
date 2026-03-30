@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Get,
   Param,
   Body,
@@ -84,6 +85,17 @@ export class CasesController {
     const resolvedTake = take >= 0 ? take : limit;
     const orgFilter = req.user.role === UserRole.ADMIN ? undefined : req.user.orgId;
     return this.casesService.findAll(resolvedSkip, resolvedTake, orgFilter);
+  }
+
+  // ── COD-34: 허브 조직 할당 (ADMIN 전용) ──
+  @Patch(':id/hub')
+  @Roles(UserRole.ADMIN)
+  async assignHub(
+    @Param('id') id: string,
+    @Body() dto: { hubOrgId: string },
+    @Request() req: any,
+  ) {
+    return this.casesService.assignHub(id, dto.hubOrgId, req.user.id);
   }
 
   @Get(':id')

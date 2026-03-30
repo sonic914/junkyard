@@ -83,7 +83,8 @@ export async function loginAs(page: Page, email: string): Promise<void> {
   const redirect = ROLE_REDIRECT[user.role as string] ?? '/';
   await page.goto(redirect);
 
-  // 6단계: aside (사이드바) 렌더링 대기 — auth store 정상 로드 확인
+  // 6단계: networkidle 대기 → aside 렌더링 확인 (hydration 완료)
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
   await page.waitForSelector('aside', { timeout: 12000 });
 }
 

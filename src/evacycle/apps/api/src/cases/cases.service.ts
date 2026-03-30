@@ -325,4 +325,24 @@ export class CasesService {
     }
     return vehicleCase;
   }
+
+  // ── COD-34: 허브 조직 할당 ────────────────────────────────────────────────
+  async assignHub(caseId: string, hubOrgId: string, actorId: string) {
+    const vehicleCase = await this.prisma.vehicleCase.findUnique({
+      where: { id: caseId },
+    });
+    if (!vehicleCase) throw new NotFoundException('Case not found');
+
+    const updated = await this.prisma.vehicleCase.update({
+      where: { id: caseId },
+      data: { hubOrgId },
+      include: {
+        ownerOrg: { select: { id: true, name: true } },
+        hubOrg:   { select: { id: true, name: true } },
+        creator:  { select: { id: true, name: true } },
+      },
+    });
+
+    return updated;
+  }
 }
