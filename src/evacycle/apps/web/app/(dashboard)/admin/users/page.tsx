@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(data?.items ?? []).length === 0 && (
+                  {(Array.isArray(data?.items) ? data.items : []).length === 0 && (
                     <TableRow>
                       <TableCell
                         colSpan={6}
@@ -151,7 +151,7 @@ export default function AdminUsersPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {(data?.items ?? []).map((user) => (
+                  {(Array.isArray(data?.items) ? data.items : []).map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">

@@ -319,7 +319,7 @@ export default function LotDetailPage() {
                   variant={
                     lot.listing.status === 'SOLD'
                       ? 'outline'
-                      : lot.listing.status === 'OPEN'
+                      : lot.listing.status === 'ACTIVE'
                         ? 'default'
                         : 'secondary'
                   }

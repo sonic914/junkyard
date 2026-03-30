@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, Prisma } from '@prisma/client';
+import { paginate, toSkipTake } from '../common/dto/paginated-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -70,17 +71,21 @@ export class UsersService {
     role?: UserRole;
     skip?: number;
     take?: number;
-  }): Promise<{ data: any[]; total: number }> {
+    page?: number;
+    limit?: number;
+  }) {
     const where: Prisma.UserWhereInput = {
       ...(params?.orgId && { orgId: params.orgId }),
       ...(params?.role && { role: params.role }),
     };
 
+    const { skip, take } = toSkipTake(params ?? {});
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
-        skip: params?.skip ?? 0,
-        take: params?.take ?? 20,
+        skip,
+        take,
         select: {
           id: true,
           email: true,
@@ -97,6 +102,6 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    return { data, total };
+    return paginate(data, total, params ?? {});
   }
 }

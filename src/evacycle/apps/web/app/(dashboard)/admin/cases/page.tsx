@@ -123,7 +123,7 @@ export default function AdminCasesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(data?.items ?? []).length === 0 && (
+                  {(Array.isArray(data?.items) ? data.items : []).length === 0 && (
                     <TableRow>
                       <TableCell
                         colSpan={7}
@@ -133,7 +133,7 @@ export default function AdminCasesPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {(data?.items ?? []).map((c) => (
+                  {(Array.isArray(data?.items) ? data.items : []).map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-mono text-sm font-medium">
                         {c.caseNo}

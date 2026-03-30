@@ -40,8 +40,10 @@ const state = {
 // ─── 1. 폐차장 로그인 ─────────────────────────────────────────────────────────
 test('1. 폐차장 로그인', async ({ page }) => {
   await loginAs(page, 'junkyard@evacycle.com');
+  // loginAs 내부에서 waitForSelector('aside') 완료 후 도착
   await expect(page).toHaveURL(/\/cases/, { timeout: 8000 });
-  await expect(page.locator('aside')).toContainText('EVACYCLE');
+  // aside 안의 'EVACYCLE' 텍스트 (sidebar.tsx: <span>EVACYCLE</span>)
+  await expect(page.locator('aside')).toContainText('EVACYCLE', { timeout: 8000 });
 });
 
 // ─── 2. 케이스 등록 위저드 ────────────────────────────────────────────────────
@@ -251,7 +253,7 @@ test('8. 바이어 마켓플레이스 구매', async ({ page }) => {
   let targetLotId = state.lotId;
 
   if (!targetLotId) {
-    // API로 listing.status=OPEN인 ON_SALE Lot 조회
+    // API로 listing.status=ACTIVE인 ON_SALE Lot 조회
     // GET /lots?status=ON_SALE → PaginatedResponse<DerivedLot> { data: [...] }
     const token = await getAccessToken('buyer@evacycle.com');
     const lotsRes = await fetch(`${API}/lots?status=ON_SALE&limit=20`, {
@@ -262,8 +264,8 @@ test('8. 바이어 마켓플레이스 구매', async ({ page }) => {
       const lots: any[] = Array.isArray(lotsData)
         ? lotsData
         : (lotsData.lots ?? lotsData.data ?? lotsData.items ?? []);
-      // listing.status === 'OPEN' 인 Lot만 선택 (isSoldOut 조건 회피)
-      const openLot = lots.find((l) => l.listing?.status === 'OPEN');
+      // listing.status === 'ACTIVE' 인 Lot만 선택 (isSoldOut 조건 회피)
+      const openLot = lots.find((l) => l.listing?.status === 'ACTIVE');
       targetLotId = openLot?.id ?? '';
     }
   }
