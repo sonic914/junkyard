@@ -57,7 +57,10 @@ function CaseActions({
   const cancelMut = useMutation({
     mutationFn: (reason: string) => cancelCase(caseId, reason),
     onSuccess: () => { toast({ title: '케이스 취소 완료' }); invalidate(); },
-    onError: () => toast({ variant: 'destructive', title: '취소 실패' }),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? err?.message ?? '취소 처리 중 오류가 발생했습니다.';
+      toast({ variant: 'destructive', title: '취소 실패', description: String(msg) });
+    },
   });
 
   if (status === 'SETTLED' || status === 'SOLD' || status === 'CANCELLED') {

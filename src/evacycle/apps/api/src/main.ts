@@ -36,9 +36,17 @@ async function bootstrap() {
   );
 
   // CORS 설정
+  // credentials: true 시 origin: '*' 은 브라우저 차단 → 명시적 origin 필요
+  const rawOrigin = configService.get<string>('app.corsOrigin', 'http://localhost:3001');
+  const allowedOrigins = rawOrigin === '*'
+    ? true  // 와일드카드는 boolean true로 처리 (credentials 없는 환경)
+    : rawOrigin.split(',').map((o) => o.trim());
+
   app.enableCors({
-    origin: configService.get<string>('app.corsOrigin', '*'),
+    origin: allowedOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-refresh-token'],
   });
 
   // Swagger (개발 환경에서만 활성화)

@@ -48,6 +48,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+      # CORS: 브라우저에서 직접 MinIO 접근 시 허용 origin
+      MINIO_API_CORS_ALLOW_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
     ports:
       - '${MINIO_PORT:-9000}:9000'   # API
       - '9001:9001'                   # Web Console

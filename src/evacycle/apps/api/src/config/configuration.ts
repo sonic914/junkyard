@@ -43,6 +43,9 @@ export default () => ({
     secretKey: process.env.MINIO_SECRET_KEY ?? 'minioadmin',
     bucketName: process.env.MINIO_BUCKET ?? 'evacycle',
     useSSL: process.env.MINIO_USE_SSL === 'true',
+    // 브라우저가 MinIO에 접근할 때 사용하는 공개 URL
+    // 개발: http://localhost:9000, 프로덕션: https://minio.example.com
+    publicUrl: process.env.MINIO_PUBLIC_URL ?? undefined,
   },
 
   blockchain: {
