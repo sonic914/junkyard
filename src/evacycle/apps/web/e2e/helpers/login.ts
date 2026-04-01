@@ -59,8 +59,7 @@ export async function loginAs(page: Page, email: string): Promise<void> {
         state: {
           user:            authData.user,
           isAuthenticated: true,
-          accessToken:     null,  // accessToken은 메모리만 — persist 제외
-          refreshToken:    null,
+          // accessToken/refreshToken은 persist 제외 — __E2E_AUTH__ 주입값 보존
         },
         version: 0,
       });
