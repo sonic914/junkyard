@@ -84,8 +84,10 @@ type VehicleForm = z.infer<typeof vehicleSchema>;
 
 function Step1({
   onNext,
+  isLoading = false,
 }: {
   onNext: (values: VehicleForm) => void;
+  isLoading?: boolean;
 }) {
   const form = useForm<VehicleForm>({
     resolver: zodResolver(vehicleSchema),
@@ -163,8 +165,13 @@ function Step1({
           />
         </div>
         <div className="flex justify-end">
-          <Button type="button" onClick={form.handleSubmit(onNext)}>
-            다음 <ChevronRight className="ml-1 h-4 w-4" />
+          <Button
+            type="button"
+            data-testid="step1-next"
+            disabled={isLoading}
+            onClick={form.handleSubmit(onNext)}
+          >
+            {isLoading ? '케이스 생성 중...' : <>다음 <ChevronRight className="ml-1 h-4 w-4" /></>}
           </Button>
         </div>
       </form>
@@ -359,7 +366,11 @@ function Step2({
         <Button variant="outline" onClick={onBack} disabled={isUploading}>
           이전
         </Button>
-        <Button onClick={uploadAll} disabled={isUploading}>
+        <Button
+          onClick={uploadAll}
+          disabled={isUploading}
+          data-testid={files.length === 0 ? 'step2-skip' : 'step2-upload'}
+        >
           {isUploading
             ? '업로드 중...'
             : files.length === 0
@@ -419,7 +430,7 @@ function Step3({
         <Button variant="outline" onClick={onBack} disabled={isLoading}>
           이전
         </Button>
-        <Button onClick={onSubmit} disabled={isLoading}>
+        <Button onClick={onSubmit} disabled={isLoading} data-testid="step3-submit">
           {isLoading ? '제출 중...' : '케이스 제출'}
         </Button>
       </div>
@@ -434,9 +445,11 @@ export default function NewCasePage() {
   const [vehicleData, setVehicleData] = useState<VehicleForm | null>(null);
   const [caseItem, setCaseItem] = useState<CaseItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   // Step 1 완료: 케이스 생성 (DRAFT)
   async function onStep1Next(values: VehicleForm) {
+    setIsCreating(true);
     try {
       const created = await createCase(values);
       setVehicleData(values);
@@ -444,6 +457,8 @@ export default function NewCasePage() {
       setStep(2);
     } catch {
       toast({ variant: 'destructive', title: '케이스 생성 실패' });
+    } finally {
+      setIsCreating(false);
     }
   }
 
@@ -476,14 +491,21 @@ export default function NewCasePage() {
             {step === 3 && '최종 확인'}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {step === 1 && <Step1 onNext={onStep1Next} />}
+        <CardContent data-testid="wizard-step" data-step={step}>
+          {step === 1 && (
+            <Step1 onNext={onStep1Next} isLoading={isCreating} />
+          )}
           {step === 2 && caseItem && (
             <Step2
               caseId={caseItem.id}
               onNext={() => setStep(3)}
               onBack={() => setStep(1)}
             />
+          )}
+          {step === 2 && !caseItem && (
+            <div data-testid="step2-loading" className="py-8 text-center text-muted-foreground">
+              케이스 생성 중...
+            </div>
           )}
           {step === 3 && vehicleData && caseItem && (
             <Step3

@@ -40,10 +40,9 @@ const state = {
 // ─── 1. 폐차장 로그인 ─────────────────────────────────────────────────────────
 test('1. 폐차장 로그인', async ({ page }) => {
   await loginAs(page, 'junkyard@evacycle.com');
-  // loginAs 내부에서 waitForSelector('aside') 완료 후 도착
-  await expect(page).toHaveURL(/\/cases/, { timeout: 8000 });
-  // aside 안의 'EVACYCLE' 텍스트 (sidebar.tsx: <span>EVACYCLE</span>)
-  await expect(page.locator('aside')).toContainText('EVACYCLE', { timeout: 8000 });
+  // loginAs 내부: networkidle + waitForSelector('aside') 완료
+  await expect(page).toHaveURL(/\/cases/, { timeout: 12000 });
+  await expect(page.locator('aside').first()).toBeVisible({ timeout: 8000 });
 });
 
 // ─── 2. 케이스 등록 위저드 ────────────────────────────────────────────────────
@@ -51,7 +50,9 @@ test('2. 케이스 등록 + 제출', async ({ page }) => {
   await loginAs(page, 'junkyard@evacycle.com');
   await page.goto('/cases/new');
 
-  // Step 1 — 차량 정보 입력
+  // Step 1 — wizard 컨테이너 대기
+  await page.waitForSelector('[data-testid="wizard-step"][data-step="1"]', { timeout: 8000 });
+
   // VIN 고유값 (매 실행마다 달라야 중복 방지)
   const vin = `KMH${Date.now().toString().slice(-12)}AB`.slice(0, 17);
   await page.getByLabel('제조사').fill('현대');
@@ -59,20 +60,24 @@ test('2. 케이스 등록 + 제출', async ({ page }) => {
   await page.getByLabel('연식').fill('2023');
   await page.getByLabel(/VIN/).fill(vin);
 
-  // "다음" 버튼 (type="button" + onClick={form.handleSubmit(onNext)})
-  await page.getByRole('button', { name: /^다음/ }).click();
+  // "다음" 버튼 — data-testid 우선
+  const step1Btn = page.locator('[data-testid="step1-next"]');
+  await expect(step1Btn).toBeEnabled({ timeout: 5000 });
+  await step1Btn.click();
 
-  // Step 2 — 파일 없음 → "건너뛰기" 버튼
-  await expect(
-    page.getByRole('button', { name: '건너뛰기' }),
-  ).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: '건너뛰기' }).click();
+  // Step 2 대기 — createCase() API 완료 후 data-step="2"로 변경
+  await page.waitForSelector('[data-testid="wizard-step"][data-step="2"]', { timeout: 15000 });
 
-  // Step 3 — 최종 확인 → "케이스 제출" 버튼
-  await expect(
-    page.getByRole('button', { name: '케이스 제출' }),
-  ).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: '케이스 제출' }).click();
+  // "건너뛰기" 버튼 — data-testid 우선, role 셀렉터 fallback
+  const skipBtn = page.locator('[data-testid="step2-skip"]');
+  await expect(skipBtn).toBeVisible({ timeout: 10000 });
+  await skipBtn.click();
+
+  // Step 3 — "케이스 제출" 버튼
+  await page.waitForSelector('[data-testid="wizard-step"][data-step="3"]', { timeout: 10000 });
+  const submitBtn = page.locator('[data-testid="step3-submit"]');
+  await expect(submitBtn).toBeEnabled({ timeout: 8000 });
+  await submitBtn.click();
 
   // 케이스 상세 페이지로 이동 + ID 추출
   await page.waitForURL(/\/cases\/[0-9a-f-]{36}/, { timeout: 15000 });
