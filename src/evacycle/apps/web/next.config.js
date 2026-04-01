@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Docker standalone 빌드 (NAS 배포용)
+  output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   async rewrites() {
     return [
       {
