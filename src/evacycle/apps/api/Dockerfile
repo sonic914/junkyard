@@ -35,4 +35,4 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "cd apps/api && npx prisma migrate deploy && node dist/main"]
+CMD ["node", "apps/api/dist/main"]

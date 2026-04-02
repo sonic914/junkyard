@@ -88,6 +88,16 @@ if [ $timeout -le 0 ]; then
   exit 1
 fi
 
+# ─── DB 마이그레이션 (컨테이너 시작 전 별도 실행) ────────────────────────────
+info "DB 마이그레이션 실행 중..."
+$COMPOSE_CMD -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+  run --rm api sh -c "cd apps/api && npx prisma migrate deploy"
+if [ $? -ne 0 ]; then
+  error "DB 마이그레이션 실패. 배포를 중단합니다."
+  exit 1
+fi
+info "마이그레이션 완료"
+
 # ─── 애플리케이션 시작 ────────────────────────────────────────────────────────
 info "API + Web 서버 시작 중..."
 $COMPOSE_CMD -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d api web
