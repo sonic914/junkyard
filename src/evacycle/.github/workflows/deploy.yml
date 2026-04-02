@@ -1,0 +1,69 @@
+name: CD — NAS 자동배포
+
+on:
+  # CI 성공 후 자동 트리거
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+  # 수동 배포 (긴급 재배포)
+  workflow_dispatch:
+    inputs:
+      no_cache:
+        description: 'Docker 캐시 무시'
+        required: false
+        default: 'false'
+        type: boolean
+
+# 동시 배포 방지
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to NAS
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    # NAS에 설치된 Self-hosted Runner 사용
+    runs-on: [self-hosted, nas, evacycle]
+
+    timeout-minutes: 20
+
+    steps:
+      - name: 배포 시작 로그
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo " EVACYCLE CD 배포 시작"
+          echo " 커밋: ${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo " 실행자: ${{ github.actor }}"
+          echo " 시각: $(date '+%Y-%m-%d %H:%M:%S KST')"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: deploy.sh 실행
+        working-directory: /volume1/docker/evacycle/repo
+        run: |
+          CACHE_FLAG=""
+          if [ "${{ github.event.inputs.no_cache }}" = "true" ]; then
+            CACHE_FLAG="--no-cache"
+            echo "⚙️ --no-cache 모드 활성화"
+          fi
+          bash deploy.sh $CACHE_FLAG
+
+      - name: 서비스 상태 확인
+        working-directory: /volume1/docker/evacycle/repo
+        run: |
+          echo "📋 실행 중인 컨테이너:"
+          docker compose -f docker-compose.prod.yml ps
+
+      - name: 실패 시 롤백 안내
+        if: failure()
+        run: |
+          echo "❌ 배포 실패. 롤백 방법:"
+          echo "  cd /volume1/docker/evacycle/repo"
+          echo "  git log --oneline -5"
+          echo "  git checkout <이전 커밋>"
+          echo "  bash deploy.sh"
