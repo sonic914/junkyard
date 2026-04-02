@@ -1,17 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Docker standalone 빌드 (NAS 배포용)
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   async rewrites() {
+    const apiUrl = process.env.INTERNAL_API_URL || 'http://api:3000';
+    const minioUrl = process.env.INTERNAL_MINIO_URL || 'http://minio:9000';
     return [
       {
         source: '/api/backend/:path*',
-        destination: 'http://localhost:3000/v1/:path*',
+        destination: `${apiUrl}/v1/:path*`,
       },
       {
         source: '/api/minio/:path*',
-        destination: 'http://localhost:9000/:path*',
+        destination: `${minioUrl}/:path*`,
       },
     ];
   },
