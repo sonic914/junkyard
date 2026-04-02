@@ -29,6 +29,7 @@ const FILE_TYPE_RULES: Record<string, { allowedContentTypes: string[]; maxSize: 
 @Injectable()
 export class FilesService implements OnModuleInit {
   private readonly bucketName: string;
+  private readonly publicUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -36,6 +37,7 @@ export class FilesService implements OnModuleInit {
     @Inject(MINIO_CLIENT) private readonly minio: MinioClient,
   ) {
     this.bucketName = this.config.get<string>('minio.bucketName', 'evacycle');
+    this.publicUrl = this.config.get<string>('minio.publicUrl', 'http://localhost:9000');
   }
 
   async onModuleInit() {
@@ -88,11 +90,13 @@ export class FilesService implements OnModuleInit {
     });
 
     // MinIO presigned PUT URL 발급
-    const uploadUrl = await this.minio.presignedPutObject(
+    let uploadUrl = await this.minio.presignedPutObject(
       this.bucketName,
       objectKey,
       PRESIGN_EXPIRY,
     );
+    // 내부 MinIO 주소를 외부 접근 가능한 PUBLIC URL로 교체
+    uploadUrl = uploadUrl.replace(/^https?:\/\/[^/]+/, this.publicUrl);
 
     return {
       fileId: caseFile.id,

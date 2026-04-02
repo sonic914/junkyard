@@ -43,6 +43,7 @@ export default () => ({
     secretKey: process.env.MINIO_SECRET_KEY ?? 'minioadmin',
     bucketName: process.env.MINIO_BUCKET ?? 'evacycle',
     useSSL: process.env.MINIO_USE_SSL === 'true',
+    publicUrl: process.env.MINIO_PUBLIC_URL ?? 'http://localhost:9000',
   },
 
   blockchain: {
