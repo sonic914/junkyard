@@ -302,7 +302,13 @@ export class CasesService {
   }
 
   async findAll(skip: number, take: number, orgId?: string) {
-    const where = orgId ? { orgId } : {};
+    const where = orgId ? {
+      OR: [
+        { orgId },
+        { hubOrgId: orgId },
+        { intakeOrgId: orgId },
+      ]
+    } : {};
     const [data, total] = await Promise.all([
       this.prisma.vehicleCase.findMany({
         where,
