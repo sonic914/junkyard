@@ -1,5 +1,5 @@
 # ─── Stage 1: Builder ─────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY apps/api/tsconfig*.json ./apps/api/
 RUN npm run build --workspace=apps/api
 
 # ─── Stage 2: Runner ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
