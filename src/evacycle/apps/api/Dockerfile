@@ -3,6 +3,8 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY apps/api/prisma ./apps/api/prisma
@@ -21,17 +23,16 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# 프로덕션 의존성 (root로 설치)
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY apps/api/prisma ./apps/api/prisma
 RUN npm ci --omit=dev --ignore-scripts
 RUN cd apps/api && npx prisma generate
 
-# 빌드 결과물
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 EXPOSE 3000
 
-# root로 migrate 후 서버 시작 (권한 문제 방지)
 CMD ["sh", "-c", "cd apps/api && npx prisma migrate deploy && node dist/main"]
