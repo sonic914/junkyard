@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsUUID, IsNumber, Max, Min } from 'class-validator';
 import { FileType } from '@prisma/client';
 
 export class PresignFileDto {
@@ -10,6 +10,12 @@ export class PresignFileDto {
 
   @IsString()
   contentType!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(20 * 1024 * 1024) // 20MB max
+  fileSize?: number;
 
   @IsOptional()
   @IsUUID()

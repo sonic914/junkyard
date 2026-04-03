@@ -64,6 +64,13 @@ export class FilesService implements OnModuleInit {
       );
     }
 
+    // 파일 크기 사전 검증 (presign 단계에서 차단)
+    if (dto.fileSize !== undefined && rules && dto.fileSize > rules.maxSize) {
+      throw new BadRequestException(
+        `File size ${dto.fileSize} exceeds maximum ${rules.maxSize} bytes for type ${dto.fileType}`,
+      );
+    }
+
     // 파일 확장자 추출
     const ext = dto.fileName.split('.').pop() ?? 'bin';
 

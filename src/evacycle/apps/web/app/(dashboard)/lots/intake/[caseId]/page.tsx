@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCase } from '@/lib/api/cases';
 import { intakeConfirm } from '@/lib/api/lots';
 import { useAuthStore } from '@/lib/store/auth';
@@ -22,6 +22,7 @@ import {
 export default function IntakePage() {
   const { caseId } = useParams<{ caseId: string }>();
   const router = useRouter();
+  const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
 
   const { data: caseItem, isLoading } = useQuery({
@@ -36,6 +37,11 @@ export default function IntakePage() {
       return intakeConfirm(caseId, currentUser.id);
     },
     onSuccess: () => {
+      // COD-58: 입고 확인 후 관련 쿼리 전체 invalidate
+      qc.invalidateQueries({ queryKey: ['case', caseId] });
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['case-events', caseId] });
+      qc.invalidateQueries({ queryKey: ['lots'] });
       toast({
         title: '입고 확인 완료',
         description: `${caseItem?.caseNo} → RECEIVED`,
