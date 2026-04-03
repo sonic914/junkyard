@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCase, submitCase, cancelCase, transitionCase } from '@/lib/api/cases';
 import { getLots, createListing } from '@/lib/api/lots';
+import { presignFile, uploadToMinIO, confirmFile, getCaseFiles } from '@/lib/api/files';
 import { useAuthStore } from '@/lib/store/auth';
 import { StatusStepper } from '@/components/cases/status-stepper';
 import { GradingTab } from '@/components/cases/grading-tab';
@@ -40,8 +41,105 @@ import {
   PenLine,
   XCircle,
   ShoppingCart,
+  Upload,
+  ImageIcon,
 } from 'lucide-react';
 import type { CaseStatus } from '@/types';
+
+// ─── COD-56: 파일 업로드 탭 ─────────────────────────────────────────────────
+function CaseFilesTab({ caseId }: { caseId: string }) {
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['case-files', caseId],
+    queryFn: () => getCaseFiles(caseId),
+  });
+
+  const files = data?.files ?? [];
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setProgress(0);
+    try {
+      const presigned = await presignFile(caseId, file);
+      await uploadToMinIO(presigned.uploadUrl, file, setProgress);
+      await confirmFile(caseId, {
+        fileId: presigned.fileId,
+        key: presigned.key,
+        filename: file.name,
+        contentType: file.type,
+        size: file.size,
+      });
+      toast({ title: '파일 업로드 완료' });
+      qc.invalidateQueries({ queryKey: ['case-files', caseId] });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: '업로드 실패', description: err?.message ?? '알 수 없는 오류' });
+    } finally {
+      setUploading(false);
+      setProgress(0);
+      e.target.value = '';
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium text-muted-foreground">첨부 파일</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* 업로드 버튼 */}
+        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground hover:bg-muted/50">
+          <Upload className="h-4 w-4" />
+          {uploading ? `업로드 중... ${progress}%` : '파일 선택 (이미지/PDF, 최대 20MB)'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="hidden"
+            disabled={uploading}
+            onChange={handleFileChange}
+          />
+        </label>
+
+        {/* 파일 목록 */}
+        {isLoading ? (
+          <Skeleton className="h-16 w-full" />
+        ) : files.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-4">첨부된 파일이 없습니다</p>
+        ) : (
+          <ul className="space-y-2">
+            {files.map((f) => (
+              <li key={f.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="truncate max-w-[200px]">{f.fileName}</span>
+                  {f.fileSize && (
+                    <span className="text-xs text-muted-foreground">
+                      ({(f.fileSize / 1024).toFixed(0)}KB)
+                    </span>
+                  )}
+                </div>
+                {f.downloadUrl && (
+                  <a
+                    href={f.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary underline"
+                  >
+                    다운로드
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // ─── Listing 생성 모달 (COD-61) ──────────────────────────────────────────────
 function ListingModal({
@@ -304,6 +402,7 @@ export default function CaseDetailPage() {
   ];
 
   const showGradingTab = ['GRADING', 'ON_SALE', 'SOLD', 'SETTLED'].includes(caseItem.status);
+  const showFilesTab = true; // 항상 표시 (업로드 및 조회 가능)
 
   return (
     <div className="space-y-5">
@@ -336,6 +435,7 @@ export default function CaseDetailPage() {
       <Tabs defaultValue="info">
         <TabsList>
           <TabsTrigger value="info">케이스 정보</TabsTrigger>
+          <TabsTrigger value="files">첨부 파일</TabsTrigger>
           {showGradingTab && (
             <TabsTrigger value="grading">그레이딩 결과</TabsTrigger>
           )}
@@ -385,6 +485,11 @@ export default function CaseDetailPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* COD-56: 첨부 파일 탭 */}
+        <TabsContent value="files">
+          <CaseFilesTab caseId={caseItem.id} />
         </TabsContent>
 
         {/* COD-60: 그레이딩 결과 탭 */}
