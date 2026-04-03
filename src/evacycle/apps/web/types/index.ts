@@ -23,6 +23,8 @@ export interface CaseItem {
   createdAt: string;
   updatedAt: string;
   org?: { id: string; name: string };
+  hubOrgId?: string;
+  hubOrg?: { id: string; name: string };
 }
 
 export interface CaseListResponse {
@@ -67,6 +69,7 @@ export interface Organization {
   name: string;
   type: OrgType;
   bizNo: string;
+  isActive?: boolean;
   createdAt: string;
 }
 

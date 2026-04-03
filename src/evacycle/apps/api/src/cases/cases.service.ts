@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { CaseStatus, EventType, UserRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { FilesService } from '../files/files.service';
@@ -21,6 +22,7 @@ export class CasesService {
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
     private readonly filesService: FilesService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createCase(dto: CreateCaseDto, actorId: string, orgId: string) {
@@ -133,13 +135,38 @@ export class CasesService {
         );
       }
 
+      // COD-57: COC_SIGNED 시 허브 자동 배정
+      let hubOrgId: string | undefined;
+      if (eventType === EventType.COC_SIGNED) {
+        if (payload?.toOrgId) {
+          const hub = await tx.organization.findFirst({
+            where: { id: payload.toOrgId, type: 'HUB', isActive: true },
+          });
+          if (!hub) {
+            throw new BadRequestException('유효하지 않은 허브 조직입니다.');
+          }
+          hubOrgId = hub.id;
+        } else {
+          const defaultHubId = this.configService.get<string>('DEFAULT_HUB_ORG_ID');
+          if (defaultHubId) {
+            const hub = await tx.organization.findFirst({
+              where: { id: defaultHubId, type: 'HUB', isActive: true },
+            });
+            if (hub) hubOrgId = hub.id;
+          }
+        }
+      }
+
       let updated = vehicleCase;
       // toStatus가 null이면 상태 변경 없음 (이벤트 기록만)
       if (rule.toStatus !== null) {
         try {
           updated = await tx.vehicleCase.update({
             where: { id: caseId, status: vehicleCase.status },
-            data: { status: rule.toStatus },
+            data: {
+              status: rule.toStatus,
+              ...(hubOrgId ? { hubOrgId } : {}),
+            },
           });
         } catch (error: any) {
           if (error?.code === 'P2025') {
@@ -157,6 +184,7 @@ export class CasesService {
           ...payload,
           statusFrom: vehicleCase.status,
           statusTo: rule.toStatus ?? vehicleCase.status,
+          ...(hubOrgId ? { assignedHubOrgId: hubOrgId } : {}),
         },
         tx,
       );

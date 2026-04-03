@@ -1,0 +1,5 @@
+-- COD-59: CHARGER, BMS PartType enum 추가
+-- PostgreSQL enum에 값 추가
+
+ALTER TYPE "PartType" ADD VALUE IF NOT EXISTS 'CHARGER';
+ALTER TYPE "PartType" ADD VALUE IF NOT EXISTS 'BMS';

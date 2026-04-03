@@ -46,3 +46,9 @@ coverage/
 
 # Turbo
 .turbo/
+-e 
+# Playwright cache
+.cache/
+-e # debug e2e files
+apps/web/e2e/debug-*.spec.ts
+apps/web/package-lock.json

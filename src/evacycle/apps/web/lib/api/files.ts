@@ -21,10 +21,21 @@ export async function presignFile(
   caseId: string,
   file: File,
 ): Promise<PresignedUrlResponse> {
+  // 클라이언트 사이드 파일 크기 사전 검증
+  const MAX_SIZES: Record<string, number> = {
+    'application/pdf': 20 * 1024 * 1024, // 20MB
+  };
+  const defaultMaxSize = 10 * 1024 * 1024; // 이미지: 10MB
+  const maxSize = MAX_SIZES[file.type] ?? defaultMaxSize;
+  if (file.size > maxSize) {
+    const maxMb = maxSize / 1024 / 1024;
+    throw new Error(`파일 크기는 ${maxMb}MB 이하여야 합니다. (현재: ${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+  }
+
   const fileType = file.type.startsWith('image/') ? 'IMAGE' : 'DOCUMENT';
   const { data } = await apiClient.post<PresignedUrlResponse>(
     `/cases/${caseId}/files/presign`,
-    { fileName: file.name, fileType, contentType: file.type },
+    { fileName: file.name, fileType, contentType: file.type, fileSize: file.size },
   );
   return data;
 }
@@ -52,6 +63,22 @@ export async function uploadToMinIO(
       }
     },
   });
+}
+
+/** 케이스 파일 목록 조회 */
+export async function getCaseFiles(caseId: string): Promise<{
+  files: Array<{
+    id: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number | null;
+    status: string;
+    downloadUrl: string | null;
+    uploadedAt: string | null;
+  }>;
+}> {
+  const { data } = await apiClient.get(`/cases/${caseId}/files`);
+  return data;
 }
 
 /** Step 3: 업로드 확인
