@@ -1,17 +1,15 @@
-name: CD — NAS 자동배포
+# .github/workflows/deploy.yml
+name: CD — Deploy to NAS
 
 on:
-  # CI 성공 후 자동 트리거
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
     branches: [main]
 
-  # 수동 배포 (긴급 재배포)
+  # 수동 배포 (긴급 재배포 / 캐시 무시)
   workflow_dispatch:
     inputs:
       no_cache:
-        description: 'Docker 캐시 무시'
+        description: 'Docker 캐시 무시 (--no-cache)'
         required: false
         default: 'false'
         type: boolean
@@ -23,47 +21,60 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to NAS
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
-
-    # NAS에 설치된 Self-hosted Runner 사용
+    name: Deploy to NAS (Self-hosted)
+    # NAS에 설치된 Runner 사용 — 내부망 문제 해소
     runs-on: [self-hosted, nas, evacycle]
-
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
-      - name: 배포 시작 로그
+      # ── 1. 배포 시작 로그 ──────────────────────────────────────
+      - name: 배포 시작
         run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "======================================"
           echo " EVACYCLE CD 배포 시작"
-          echo " 커밋: ${{ github.event.workflow_run.head_sha || github.sha }}"
-          echo " 실행자: ${{ github.actor }}"
-          echo " 시각: $(date '+%Y-%m-%d %H:%M:%S KST')"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo " 커밋: ${{ github.sha }}"
+          echo " 작성자: ${{ github.actor }}"
+          echo " 시각: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "======================================"
 
-      - name: deploy.sh 실행
-        working-directory: /volume1/docker/evacycle/repo
+      # ── 2. deploy.sh 실행 ──────────────────────────────────────
+      - name: NAS 배포 실행
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
         run: |
           CACHE_FLAG=""
           if [ "${{ github.event.inputs.no_cache }}" = "true" ]; then
             CACHE_FLAG="--no-cache"
-            echo "⚙️ --no-cache 모드 활성화"
+            echo "⚙️  --no-cache 모드"
           fi
           bash deploy.sh $CACHE_FLAG
 
+      # ── 3. 배포 결과 확인 ──────────────────────────────────────
       - name: 서비스 상태 확인
-        working-directory: /volume1/docker/evacycle/repo
+        if: success()
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
         run: |
           echo "📋 실행 중인 컨테이너:"
           docker compose -f docker-compose.prod.yml ps
+          echo ""
+          echo "✅ 배포 완료 — 커밋: ${{ github.sha }}"
 
-      - name: 실패 시 롤백 안내
+      # ── 4. 실패 시 롤백 안내 ───────────────────────────────────
+      - name: 실패 시 롤백 처리
         if: failure()
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
         run: |
-          echo "❌ 배포 실패. 롤백 방법:"
-          echo "  cd /volume1/docker/evacycle/repo"
-          echo "  git log --oneline -5"
-          echo "  git checkout <이전 커밋>"
-          echo "  bash deploy.sh"
+          echo "❌ 배포 실패. 이전 커밋으로 롤백 시도..."
+
+          # 이전 커밋으로 되돌리기
+          PREV_COMMIT=$(git log --oneline -2 | tail -1 | awk '{print $1}')
+          echo "롤백 대상: $PREV_COMMIT"
+          git checkout "$PREV_COMMIT"
+
+          # 롤백 빌드 & 기동
+          bash deploy.sh || {
+            echo "❌❌ 롤백도 실패. 수동 확인 필요!"
+            echo "    docker logs evacycle-api --tail 50"
+            exit 1
+          }
+
+          echo "⚠️  롤백 완료 — $PREV_COMMIT"
