@@ -37,7 +37,14 @@ jobs:
           echo " 시각: $(date '+%Y-%m-%d %H:%M:%S')"
           echo "======================================"
 
-      # ── 2. deploy.sh 실행 ──────────────────────────────────────
+      # ── 2. 최신 코드 pull ──────────────────────────────────────
+      - name: 최신 코드 가져오기
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          echo "📥 최신 코드 pull 중..."
+          git pull origin main
+
+      # ── 3. deploy.sh 실행 ──────────────────────────────────────
       - name: NAS 배포 실행
         working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
         run: |
@@ -48,7 +55,7 @@ jobs:
           fi
           bash deploy.sh $CACHE_FLAG
 
-      # ── 3. 배포 결과 확인 ──────────────────────────────────────
+      # ── 4. 배포 결과 확인 ──────────────────────────────────────
       - name: 서비스 상태 확인
         if: success()
         working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
@@ -58,23 +65,14 @@ jobs:
           echo ""
           echo "✅ 배포 완료 — 커밋: ${{ github.sha }}"
 
-      # ── 4. 실패 시 롤백 안내 ───────────────────────────────────
+      # ── 5. 실패 시 롤백 ───────────────────────────────────────
       - name: 실패 시 롤백 처리
         if: failure()
         working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
         run: |
-          echo "❌ 배포 실패. 이전 커밋으로 롤백 시도..."
-
-          # 이전 커밋으로 되돌리기
-          PREV_COMMIT=$(git log --oneline -2 | tail -1 | awk '{print $1}')
-          echo "롤백 대상: $PREV_COMMIT"
-          git checkout "$PREV_COMMIT"
-
-          # 롤백 빌드 & 기동
-          bash deploy.sh || {
+          echo "❌ 배포 실패. deploy.sh --rollback 으로 롤백 시도..."
+          bash deploy.sh --rollback || {
             echo "❌❌ 롤백도 실패. 수동 확인 필요!"
             echo "    docker logs evacycle-api --tail 50"
             exit 1
           }
-
-          echo "⚠️  롤백 완료 — $PREV_COMMIT"

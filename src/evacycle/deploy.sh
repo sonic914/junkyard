@@ -12,6 +12,27 @@ info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# ─── 롤백 모드 ────────────────────────────────────────────────────────────────
+if [ "${1:-}" = "--rollback" ]; then
+  echo ""
+  echo "  ╔══════════════════════════════════════╗"
+  echo "  ║    EVACYCLE 롤백 시작                ║"
+  echo "  ╚══════════════════════════════════════╝"
+  echo ""
+
+  PREV_COMMIT=$(git log --oneline -2 | tail -1 | awk '{print $1}')
+  if [ -z "$PREV_COMMIT" ]; then
+    error "이전 커밋을 찾을 수 없습니다."
+    exit 1
+  fi
+
+  info "롤백 대상: $PREV_COMMIT"
+  git checkout "$PREV_COMMIT"
+
+  # 롤백 후 일반 배포 플로우 실행 (--rollback 없이 재귀 호출)
+  exec bash "$0"
+fi
+
 echo ""
 echo "  ╔══════════════════════════════════════╗"
 echo "  ║    EVACYCLE NAS 배포 시작            ║"
