@@ -24,6 +24,10 @@ const mockFilesService = {
   getPresignedDownloadUrl: jest.fn().mockResolvedValue('https://minio/file'),
 };
 
+const mockConfigService = {
+  get: jest.fn().mockReturnValue(undefined),
+};
+
 function createMockPrisma(vehicleCase: any) {
   const txClient = {
     vehicleCase: {
@@ -43,7 +47,7 @@ function createMockPrisma(vehicleCase: any) {
 
 function createService(vehicleCase: any) {
   const prisma = createMockPrisma(vehicleCase);
-  const service = new CasesService(prisma, mockLedgerService as any, mockFilesService as any);
+  const service = new CasesService(prisma, mockLedgerService as any, mockFilesService as any, mockConfigService as any);
   return { service, prisma };
 }
 
