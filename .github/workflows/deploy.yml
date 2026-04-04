@@ -1,0 +1,59 @@
+# .github/workflows/deploy.yml
+name: CD — Deploy to NAS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      no_cache:
+        description: 'Docker 캐시 무시 (--no-cache)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to NAS (Self-hosted)
+    runs-on: [self-hosted, nas, evacycle]
+    timeout-minutes: 30
+
+    steps:
+      - name: 배포 시작
+        run: |
+          echo "======================================"
+          echo " EVACYCLE CD 배포 시작"
+          echo " 커밋: ${{ github.sha }}"
+          echo " 시각: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "======================================"
+
+      - name: 최신 코드 가져오기
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          git pull origin main
+
+      - name: NAS 배포 실행
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          CACHE_FLAG=""
+          if [ "${{ github.event.inputs.no_cache }}" = "true" ]; then
+            CACHE_FLAG="--no-cache"
+          fi
+          bash deploy.sh $CACHE_FLAG
+
+      - name: 서비스 상태 확인
+        if: success()
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          docker compose -f docker-compose.prod.yml ps
+          echo "✅ 배포 완료"
+
+      - name: 실패 시 롤백
+        if: failure()
+        working-directory: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          bash deploy.sh --rollback || echo "❌ 롤백 실패, 수동 확인 필요"
